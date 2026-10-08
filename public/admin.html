@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Else Admin</title>
+<style>*{box-sizing:border-box;font-family:'Segoe UI',system-ui}body{margin:0;background:#efeafd;max-width:900px;margin:auto;padding:12px 12px 40px;color:#2d2a4a}
+.top{background:linear-gradient(160deg,#7b5cff,#5b3df0);border-radius:0 0 24px 24px;padding:18px;color:#fff;margin:-12px -12px 12px}
+.card{background:#fff;border-radius:18px;padding:14px;margin-top:12px;box-shadow:0 4px 14px rgba(0,0,0,.06)}
+button{background:#5b3df0;color:#fff;border:0;padding:9px 14px;border-radius:12px;font-weight:700;margin:2px}button.ghost{background:#f1ebff;color:#5b3df0}button.red{background:#ff5c8a}
+input,textarea,select{width:100%;padding:10px;margin:4px 0;border-radius:12px;border:1px solid #e3dcff;background:#f8f6ff}
+.stat{display:inline-block;background:#f1ebff;border-radius:14px;padding:10px 16px;margin:4px;font-weight:800;color:#5b3df0}
+.row{display:flex;justify-content:space-between;gap:8px;background:#f8f6ff;border-radius:12px;padding:10px;margin-top:8px;font-size:13px;align-items:center;flex-wrap:wrap}
+.small{font-size:12px;color:#8a86a8}</style></head><body>
+<div class="top"><h2 style="margin:0">Else Admin Panel</h2><div class="small" style="color:#e6deff">Full server control - everything from here</div></div>
+<div class="card">Admin key <input id="k" value="else-admin-123"><div style="display:flex;gap:6px"><button onclick="load()">Load / Refresh</button><button class="ghost" onclick="resetCd()">Reset cooldown</button></div><div id="st" style="margin-top:8px"></div><div id="err" class="small"></div></div>
+<div class="card"><h3>💰 Withdraw queue</h3><div id="w"></div></div>
+<div class="card"><h3>👥 Users (ban/unban)</h3><div id="u"></div></div>
+<div class="card"><h3>🎫 Support tickets</h3><div id="t"></div></div>
+<div class="card"><h3>⚙️ Config</h3><div class="small">ads on/off, cooldownSec, dailyMax, rewardByCountry (lowest rate), minWithdraw $10, notice, maintenance</div><textarea id="c" rows="10"></textarea><button onclick="saveC()">Save config</button></div>
+<script>
+const H=()=>({'x-admin-key':document.getElementById('k').value});
+function err(m){document.getElementById('err').innerText=m||'';}
+async function load(){err('');
+try{
+const s=await(await fetch('/api/admin/stats',{headers:H()})).json();if(s.error)throw s.error;
+document.getElementById('st').innerHTML=`<span class="stat">Users ${s.users}</span><span class="stat">Ads ${s.adViews}</span><span class="stat">Paid $${(+s.totalPaid).toFixed(3)}</span><span class="stat">PendingW ${s.pendingW}</span><span class="stat">Tickets ${s.openTickets}</span>`;
+const w=await(await fetch('/api/admin/withdraws',{headers:H()})).json();
+document.getElementById('w').innerHTML=w.length?w.map(x=>`<div class="row"><span>${(x.at||'').slice(0,10)} <b>${x.name}</b> $${x.amount} ${x.method} ${x.account||''}<br><span class="small">${x.id}</span></span><span><b>${x.status}</b> ${x.status==='pending'?`<button onclick="wa('${x.id}','approve')">Pay</button><button class="red" onclick="wa('${x.id}','reject')">Reject</button>`:''}</span></div>`).join(''):'<span class="small">empty</span>';
+const u=await(await fetch('/api/admin/users',{headers:H()})).json();
+document.getElementById('u').innerHTML=u.map(x=>`<div class="row"><span><b>${x.name}</b> ${x.country} $${x.balance} ads:${x.totalAds} Lv${x.level} ${x.banned?'<b style=color:red>BANNED</b>':''}<br><span class="small">${x.referralCode}</span></span><button class="ghost" onclick="ban('${x.id}')">ban/unban</button></div>`).join('');
+const t=await(await fetch('/api/admin/tickets',{headers:H()})).json();
+document.getElementById('t').innerHTML=t.length?t.map(x=>`<div class="row"><span><b>${x.name}</b>: ${x.msg}<br><span class="small">[${x.status}] reply: ${x.reply||'-'}</span></span><button class="ghost" onclick="rep('${x.id}')">reply</button></div>`).join(''):'<span class="small">empty</span>';
+const c=await(await fetch('/api/config')).json();document.getElementById('c').value=JSON.stringify({maintenance:c.maintenance,forceUpdate:c.forceUpdate,notice:c.notice,ads:c.ads,rewardByCountry:c.rewardByCountry,minWithdraw:c.minWithdraw,referralCommission:c.referralCommission},null,2);
+}catch(e){err('Error: '+e);}}
+async function wa(id,act){await fetch(`/api/admin/withdraw/${id}/${act}`,{method:'POST',headers:H()});load();}
+async function ban(id){await fetch(`/api/admin/user/${id}/ban`,{method:'POST',headers:H()});load();}
+async function rep(id){const r=prompt('reply:');if(r===null)return;await fetch(`/api/admin/tickets/${id}/reply`,{method:'POST',headers:{...H(),'Content-Type':'application/json'},body:JSON.stringify({reply:r})});load();}
+async function saveC(){try{const v=JSON.parse(document.getElementById('c').value);const r=await(await fetch('/api/admin/config',{method:'POST',headers:{...H(),'Content-Type':'application/json'},body:JSON.stringify(v)})).json();if(r.error)throw r.error;alert('saved');}catch(e){alert('Error: '+e);}}
+async function resetCd(){await fetch('/api/admin/reset-cooldown',{method:'POST',headers:H()});alert('cooldown reset');}
+load();
+</script></body></html>

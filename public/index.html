@@ -1,0 +1,115 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Else - Watch Ads Earn $</title><style>
+*{box-sizing:border-box;font-family:'Segoe UI',system-ui,Arial}
+body{margin:0;background:#efeafd;max-width:480px;margin:auto;min-height:100vh;color:#2d2a4a;padding-bottom:80px}
+.top{background:linear-gradient(160deg,#7b5cff,#5b3df0);border-radius:0 0 28px 28px;padding:18px 16px 22px;color:#fff}
+.top-row{display:flex;justify-content:space-between;align-items:center}
+.avatar{width:44px;height:44px;border-radius:50%;background:#fff;color:#5b3df0;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px}
+.bell{background:rgba(255,255,255,.22);width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.hello{font-size:14px;opacity:.9}.uname{font-size:20px;font-weight:800}
+.balcard{background:#fff;border-radius:18px;padding:14px;margin:-18px 16px 0;display:flex;justify-content:space-between;align-items:center;box-shadow:0 6px 20px rgba(91,61,240,.18)}
+.bal{font-size:26px;font-weight:800;color:#2d2a4a}
+.chip{font-size:11px;background:#f1ebff;color:#5b3df0;border-radius:20px;padding:4px 10px;margin-right:4px;font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 16px 0}
+.tile{border-radius:18px;padding:16px 14px;color:#fff;min-height:110px;cursor:pointer;border:0;text-align:left}
+.tile b{font-size:15px;display:block;margin-top:26px}.tile span{font-size:12px;opacity:.9}
+.tile .ic{font-size:26px;background:rgba(255,255,255,.25);width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+.t-purple{background:#5b3df0}.t-orange{background:#ff9f43}.t-blue{background:#2ea3ff}.t-pink{background:#ff5c8a}
+.sec{padding:0 16px}.card{background:#fff;border-radius:18px;padding:14px;margin-top:12px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.card h3{margin:0 0 8px;font-size:15px}
+.btn{background:#5b3df0;color:#fff;border:0;padding:13px;border-radius:14px;width:100%;margin-top:8px;font-size:15px;font-weight:700}
+.btn2{background:#f1ebff;color:#5b3df0}
+input,select,textarea{width:100%;padding:11px;border-radius:12px;border:1px solid #e3dcff;background:#f8f6ff;margin-top:6px;color:#2d2a4a}
+.small{font-size:12px;color:#8a86a8}.listrow{display:flex;justify-content:space-between;background:#f8f6ff;border-radius:12px;padding:10px;margin-top:8px;font-size:13px;align-items:center}
+.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;display:flex;border-radius:22px 22px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:8px 4px;z-index:50}
+.bottom button{flex:1;background:0;border:0;font-size:11px;color:#a09cc0;padding:8px}.bottom button.on{color:#5b3df0;font-weight:800}
+.adbox{border:2px dashed #5b3df0;border-radius:14px;padding:12px;text-align:center;margin-top:12px;background:#fff;font-size:13px}
+#adstat{font-size:13px;color:#5b3df0;font-weight:700;margin-top:6px}
+#gate{position:fixed;inset:0;z-index:99;background:linear-gradient(170deg,#7b5cff,#4a2bd8);display:flex;align-items:center;justify-content:center;padding:20px}
+.gbox{background:#fff;border-radius:24px;padding:22px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.3);text-align:center}
+.gbox h2{margin:6px 0 2px;color:#2d2a4a}
+</style></head><body>
+<div id="gate"><div class="gbox">
+<div style="font-size:44px">MONEY</div><h2>Else</h2><div class="small">Watch Ads - Earn $ - Min $10 withdraw</div>
+<div style="text-align:left;margin-top:10px">Email or username<input id="guser" placeholder="you@mail.com or username">
+Password<input id="gpass" type="password" placeholder="Your password">
+<div class="small" id="gerr" style="color:#ff5c8a;min-height:16px"></div>
+<button class="btn" onclick="gateLogin()">Login</button>
+<div class="small" style="margin-top:8px">New user? <a href="/app/signup">Create an account</a></div>
+<div class="small" style="margin-top:4px">Login required on open - 1 device = 1 account</div></div></div>
+
+<div class="top"><div class="top-row">
+<div style="display:flex;gap:10px;align-items:center"><div class="avatar" id="av">E</div>
+<div><div class="hello">Hello!</div><div class="uname" id="uname">Guest</div></div></div>
+<div style="display:flex;gap:8px;align-items:center"><select id="lang" style="width:80px;background:#fff"><option value="en">EN</option><option value="bn">BN</option></select><div class="bell">BEL</div></div>
+</div><div class="small" style="color:#e6deff;margin-top:8px" id="notice">...</div></div>
+
+<div class="balcard"><div><div class="small">Total Balance</div><div class="bal">$<span id="bal">0.000</span></div>
+<div style="margin-top:6px"><span class="chip">Lv <span id="lvl">1</span></span><span class="chip"><span id="ads">0</span> ads</span><span class="chip">streak <span id="stk">0</span></span><span class="chip">tkt <span id="tkt">0</span></span></div></div>
+<div style="font-size:40px">$</div></div>
+
+<div id="p-home">
+<div class="grid">
+<button class="tile t-purple" onclick="watchAd()"><div class="ic">AD</div><b>Watch Ad</b><span id="rate">Earn $ per ad</span></button>
+<button class="tile t-orange" onclick="spin()"><div class="ic">SP</div><b>Spin</b><span>1 ticket = 1 spin</span></button>
+<button class="tile t-blue" onclick="checkin()"><div class="ic">CK</div><b>Check-in</b><span>Daily bonus</span></button>
+<button class="tile t-pink" onclick="tasks()"><div class="ic">TS</div><b>Tasks</b><span>Offerwall</span></button>
+</div>
+<div class="sec"><div class="adbox">Banner Ad (AdMob)<br><span class="small" id="bstat"></span></div><div id="adstat"></div>
+<button class="btn btn2" onclick="inter()">Interstitial Ad (owner income)</button>
+<div class="card"><h3>Account</h3><div class="small" id="accinfo"></div>
+<div style="display:flex;gap:6px"><button class="btn btn2" onclick="logout()">Logout</button><button class="btn btn2" onclick="refresh();tasks()">Refresh</button></div></div>
+<div class="card"><h3>Tasks <button class="btn2 btn" style="width:auto;padding:6px 12px" onclick="tasks()">View All</button></h3><div id="tasklist"></div></div>
+</div></div>
+
+<div id="p-wallet" style="display:none"><div class="sec">
+<div class="card"><h3>Wallet / Withdraw (min $10)</h3>
+Amount $ <input id="wamt" type="number" value="10" step="0.001">Method <select id="wm"><option>Else Pay</option></select>
+Account <input id="wacc" placeholder="number / address"><button class="btn" onclick="withdraw()">Withdraw Request</button><div id="wh"></div></div>
+<div class="card"><h3>History</h3><div id="hist" class="small"></div></div></div></div>
+
+<div id="p-ref" style="display:none"><div class="sec">
+<div class="card"><h3>Referral (10% commission)</h3><div id="refinfo"></div></div>
+<div class="card"><h3>Leaderboard</h3><div id="lead"></div></div></div></div>
+
+<div id="p-sup" style="display:none"><div class="sec">
+<div class="card"><h3>Support</h3><textarea id="smsg" placeholder="Describe your problem"></textarea><button class="btn" onclick="sup()">Send</button><div id="slist" class="small"></div></div>
+<div class="card"><h3>Rates</h3><div id="cfg" class="small"></div></div></div></div>
+
+<nav class="bottom"><button class="on" onclick="tab(0,this)">Home</button><button onclick="tab(1,this)">Wallet</button><button onclick="tab(2,this)">Referral</button><button onclick="tab(3,this)">More</button></nav>
+<script>
+let API='', TOKEN=null, ME=null;
+function tab(i,b){document.querySelectorAll('.bottom button').forEach(x=>x.classList.remove('on'));b.classList.add('on');['p-home','p-wallet','p-ref','p-sup'].forEach((id,k)=>document.getElementById(id).style.display=k===i?'block':'none');if(!TOKEN){showGate();return;}if(i===1)loadWallet();if(i===2)loadRef();if(i===3)loadSup();}
+async function api(p,m,b){const h={'Content-Type':'application/json'};if(TOKEN)h.Authorization='Bearer '+TOKEN;const r=await fetch(API+p,{method:m||'GET',headers:h,body:b?JSON.stringify(b):null});return r.json();}
+async function init(){try{const c=await api('/api/config');window.CFG=c;document.getElementById('notice').innerText=c.notice.en+' | min $'+c.minWithdraw;document.getElementById('cfg').innerText='Rates(lowest): '+JSON.stringify(c.rewardByCountry)+' | cooldown '+c.ads.cooldownSec+'s daily '+c.ads.dailyMax;const ct=((ME&&ME.country)||'BD').toUpperCase();document.getElementById('rate').innerText='1 ad = $'+(c.rewardByCountry[ct]||c.rewardByCountry.DEFAULT)+' ('+ct+')';if(c.maintenance)alert('Maintenance');}catch(e){document.getElementById('notice').innerText='server offline';}
+const st=localStorage.getItem('else_token');
+if(st){TOKEN=st;try{const r=await api('/api/me');if(r.user){ME=r.user;hideGate();upd();banner();tasks();return;}}catch(e){localStorage.removeItem('else_token');TOKEN=null;}}
+showGate();}
+function showGate(){document.getElementById('gate').style.display='flex';}
+function hideGate(){document.getElementById('gate').style.display='none';}
+function devId(){let d=localStorage.getItem('else_device');if(!d){d='dev-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('else_device',d);}return d;}
+async function gateLogin(){const id=document.getElementById('guser').value.trim();const pw=document.getElementById('gpass').value;if(!id)return document.getElementById('gerr').innerText='Enter email or username';
+document.getElementById('gerr').innerText='Logging in...';
+const r=await api('/api/auth/login','POST',{identifier:id,password:pw,deviceId:devId()});
+if(r.error)return document.getElementById('gerr').innerText=r.error;
+TOKEN=r.token;ME=r.user;localStorage.setItem('else_token',TOKEN);hideGate();upd();banner();tasks();}
+function logout(){localStorage.removeItem('else_token');TOKEN=null;ME=null;showGate();}
+function upd(){if(!ME)return;document.getElementById('bal').innerText=ME.balance.toFixed(3);document.getElementById('lvl').innerText=ME.level;document.getElementById('tkt').innerText=ME.spinTickets;document.getElementById('stk').innerText=ME.streak;document.getElementById('ads').innerText=ME.totalAds||0;document.getElementById('uname').innerText=ME.name;document.getElementById('av').innerText=(ME.name||'E')[0];document.getElementById('accinfo').innerText=ME.name+' | '+ME.country+' | '+ME.referralCode;}
+async function refresh(){if(!TOKEN){showGate();return;}const r=await api('/api/me');if(r.user){ME=r.user;upd();}else{logout();}}
+async function watchAd(){if(!TOKEN)return showGate();const s=await api('/api/ads/rewarded/start','POST',{});if(s.error)return document.getElementById('adstat').innerText='WAIT '+s.error+(s.retryAfterSec?' ('+s.retryAfterSec+'s)':'');
+document.getElementById('adstat').innerText='Ad playing (5s)...';try{if(window.AndroidRewarded)window.AndroidRewarded.showRewarded(s.sessionId);}catch(e){}
+let n=5;const iv=setInterval(async()=>{n--;document.getElementById('adstat').innerText=n+'s...';if(n<=0){clearInterval(iv);const c=await api('/api/ads/rewarded/complete','POST',{sessionId:s.sessionId});document.getElementById('adstat').innerText=c.error?c.error:'+$'+c.reward+' Bal $'+c.balance;refresh();}},1000);}
+async function banner(){if(!TOKEN)return;await api('/api/ads/banner/impression','POST',{});document.getElementById('bstat').innerText='impression logged';}
+async function inter(){if(!TOKEN)return showGate();await api('/api/ads/interstitial/view','POST',{});alert('Interstitial logged');}
+async function checkin(){if(!TOKEN)return showGate();const r=await api('/api/checkin','POST',{});alert(r.error||('Streak '+r.streak+' +$'+r.bonus));refresh();}
+async function spin(){if(!TOKEN)return showGate();const r=await api('/api/spin','POST',{});alert(r.error||('Spin +$'+r.reward));refresh();}
+async function tasks(){if(!TOKEN)return document.getElementById('tasklist').innerHTML='login first';const r=await api('/api/tasks');if(r.error){if(r.error.includes('login')||r.error.includes('banned'))logout();return;}document.getElementById('tasklist').innerHTML=r.map(t=>'<div class="listrow"><span>'+t.title_en+'<br><small>$'+t.reward+' ['+t.progress+']</small></span>'+(t.done?'OK':'<button class="btn" style="width:auto;padding:6px 14px" onclick="doneTask(\''+t.id+'\')">Claim</button>')+'</div>').join('');}
+async function doneTask(id){const r=await api('/api/tasks/'+id+'/complete','POST',{});alert(r.error||('+$'+r.reward));tasks();refresh();}
+async function loadWallet(){if(!TOKEN)return showGate();const w=await api('/api/wallet');document.getElementById('hist').innerHTML=w.history.map(h=>'<div class="listrow"><span>'+h.reason+'<br><small>'+h.at.slice(0,10)+'</small></span><b>'+(h.amount>0?'+':'')+h.amount+'</b></div>').join('');const m=await api('/api/withdraw/my');document.getElementById('wh').innerHTML='<h4>Withdraws</h4>'+m.map(x=>'<div class="listrow"><span>$'+x.amount+' '+x.method+'</span><b>'+x.status+'</b></div>').join('');}
+async function withdraw(){const r=await api('/api/withdraw','POST',{amount:+document.getElementById('wamt').value,method:document.getElementById('wm').value,account:document.getElementById('wacc').value});alert(r.error||('Request '+r.status));loadWallet();refresh();}
+async function loadRef(){if(!TOKEN)return showGate();const r=await api('/api/referral/my');document.getElementById('refinfo').innerHTML='Code: <b>'+r.code+'</b> <button class="btn" style="width:auto;padding:6px 14px" onclick="copyRef(\''+r.code+'\')">Copy</button><br>Friends: '+r.count+' | '+(r.commission*100)+'%';const l=await api('/api/leaderboard');document.getElementById('lead').innerHTML=l.length?l.map((x,i)=>'<div class="listrow"><span>'+(i+1)+'. '+x.name+' <small>'+x.totalAds+' ads</small></span><b>$'+x.balance+'</b></div>').join(''):'empty';}
+function copyRef(c){try{navigator.clipboard.writeText(c);alert('copied '+c);}catch(e){prompt('copy:',c);}}
+async function sup(){const r=await api('/api/support','POST',{msg:document.getElementById('smsg').value});alert(r.error||'Sent!');loadSup();}
+async function loadSup(){if(!TOKEN)return showGate();const r=await api('/api/support/my');document.getElementById('slist').innerHTML=r.map(x=>'Q:'+x.msg+'<br>A:'+(x.reply||'-')).join('<hr>');}
+document.getElementById('lang').onchange=init;init();
+</script></body></html>
