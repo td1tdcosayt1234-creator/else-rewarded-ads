@@ -20,6 +20,18 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+// request ID for tracing
+app.use((req, res, next) => {
+  req.id = crypto.randomBytes(8).toString('hex');
+  res.setHeader('X-Request-ID', req.id);
   next();
 });
 // in-memory rate limiter (per IP + route group)
@@ -37,13 +49,29 @@ function rateLimit(max, windowMs) {
     next();
   };
 }
-app.use('/api/auth/', rateLimit(20, 60 * 1000)); // login/signup: 20 per min
-app.use('/api/', rateLimit(200, 60 * 1000)); // global: 200 per min
+app.use('/api/auth/', rateLimit(10, 60 * 1000)); // login/signup: 10 per min
+app.use('/api/', rateLimit(150, 60 * 1000)); // global: 150 per min
 // admin brute-force lockout: 5 wrong keys -> 5 min block
 const adminFails = new Map();
 function adminBlocked(ip) {
   const f = adminFails.get(ip);
   return f && f.count >= 5 && Date.now() - f.last < 5 * 60 * 1000;
+}
+// user login brute-force lockout: 5 wrong passwords -> 15 min block per account
+const userFails = new Map();
+function userBlocked(identifier) {
+  const f = userFails.get(identifier);
+  return f && f.count >= 5 && Date.now() - f.last < 15 * 60 * 1000;
+}
+function recordUserFail(identifier) {
+  const f = userFails.get(identifier) || { count: 0, last: 0 };
+  f.count += 1; f.last = Date.now();
+  userFails.set(identifier, f);
+}
+function clearUserFails(identifier) { userFails.delete(identifier); }
+// input sanitization (prevent XSS in stored data)
+function sanitize(str, max = 200) {
+  return String(str || '').replace(/[<>"'`&]/g, c => ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;', '`': '&#x60;', '&': '&amp;' }[c])).slice(0, max);
 }
 
 // ---------- DB ----------
@@ -286,11 +314,17 @@ app.post('/api/auth/login', (req, res) => {
   if (db.config.maintenance) return res.status(503).json({ error: 'maintenance' });
   // new style: email or username + password (only way in the app)
   if (identifier) {
+    const idKey = String(identifier).trim().toLowerCase();
+    if (userBlocked(idKey)) return res.status(429).json({ error: 'account locked 15 min - too many wrong passwords' });
     const user = findByIdentifier(identifier);
     if (!user) return res.status(401).json({ error: 'account not found' });
     if (user.banned) return res.status(403).json({ error: 'banned' });
     const ok = user.isAdmin ? checkAdminPass(password) : checkUserPass(user, password);
-    if (!ok) return res.status(401).json({ error: 'wrong password' });
+    if (!ok) {
+      recordUserFail(idKey);
+      return res.status(401).json({ error: 'wrong password' });
+    }
+    clearUserFails(idKey);
     // device lock: bind first device, block others
     if (deviceId) {
       if (!user.deviceId) { user.deviceId = deviceId; }
@@ -356,6 +390,8 @@ app.post('/api/auth/signup', (req, res) => {
   if (!EMAIL_RE.test(mail)) return res.status(400).json({ error: 'valid email required', step: 2 });
   if (db.users.some(u => u.email === mail)) return res.status(400).json({ error: 'email already registered', step: 2 });
   if (!password || String(password).length < 6) return res.status(400).json({ error: 'password min 6 chars', step: 2 });
+  const pw = String(password);
+  if (!/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) return res.status(400).json({ error: 'password needs upper, lower + number', step: 2 });
   const bd = String(birthday || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(bd) || isNaN(new Date(bd).getTime())) return res.status(400).json({ error: 'birthday YYYY-MM-DD required', step: 2 });
   let referredBy = null;
@@ -366,9 +402,9 @@ app.post('/api/auth/signup', (req, res) => {
   const salt = crypto.randomBytes(8).toString('hex');
   const user = {
     id: nid('u'), deviceId: deviceId || null,
-    name: (String(firstName).trim() + ' ' + String(lastName).trim()).slice(0, 30),
-    firstName: String(firstName).trim().slice(0, 30), lastName: String(lastName).trim().slice(0, 30),
-    country: String(country).trim().toUpperCase().slice(0, 30), city: String(city).trim().slice(0, 40), zip: String(zip).trim().slice(0, 12),
+    name: sanitize(String(firstName).trim() + ' ' + String(lastName).trim(), 30),
+    firstName: sanitize(String(firstName).trim(), 30), lastName: sanitize(String(lastName).trim(), 30),
+    country: String(country).trim().toUpperCase().slice(0, 30), city: sanitize(String(city).trim(), 40), zip: sanitize(String(zip).trim(), 12),
     username: uname, birthday: bd, email: mail,
     passHash: { salt, hash: hashUserPass(String(password), salt) },
     balance: 0, totalAds: 0, spinTickets: 1,
@@ -523,7 +559,7 @@ app.get('/api/withdraw/my', auth, (req, res) => res.json(db.withdraws.filter(w =
 app.post('/api/support', auth, (req, res) => {
   const { msg } = req.body || {};
   if (!msg) return res.status(400).json({ error: 'msg required' });
-  const t = { id: nid('s'), userId: req.user.id, name: req.user.name, msg: String(msg).slice(0, 500), reply: '', status: 'open', at: new Date().toISOString() };
+  const t = { id: nid('s'), userId: req.user.id, name: sanitize(req.user.name, 30), msg: sanitize(msg, 500), reply: '', status: 'open', at: new Date().toISOString() };
   db.tickets.push(t); save(); res.json(t);
 });
 app.get('/api/support/my', auth, (req, res) => res.json(db.tickets.filter(t => t.userId === req.user.id).reverse()));
@@ -585,6 +621,15 @@ app.post('/api/admin/config', adminAuth, (req, res) => {
   if (b.ads) db.config.ads = { ...db.config.ads, ...b.ads };
   if (b.notice) db.config.notice = { ...db.config.notice, ...b.notice };
   save(); res.json(db.config);
+});
+// session inactivity timeout: tokens older than 12h must re-login (checked on /api/me)
+const SESSION_TTL = 12 * 60 * 60 * 1000;
+app.get('/api/me', auth, (req, res) => {
+  const age = Date.now() - new Date(req.user.createdAt).getTime();
+  if (age > SESSION_TTL && !req.user.isAdmin) {
+    return res.status(401).json({ error: 'session expired, login again' });
+  }
+  res.json({ user: publicUser(req.user) });
 });
 // test/reset helper (admin only)
 app.post('/api/admin/reset-cooldown', adminAuth, (req, res) => {
@@ -761,7 +806,7 @@ app.get('/api/admin/tickets', adminAuth, (req, res) => res.json(db.tickets.slice
 app.post('/api/admin/tickets/:id/reply', adminAuth, (req, res) => {
   const t = db.tickets.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ error: 'no' });
-  t.reply = String((req.body || {}).reply || '').slice(0, 500); t.status = 'closed'; save(); res.json(t);
+  t.reply = sanitize((req.body || {}).reply || '', 500); t.status = 'closed'; save(); res.json(t);
 });
 
 // ---------- Else Pay gateway: other webs use our console (real) ----------
@@ -868,7 +913,7 @@ app.post('/api/pay/:id/confirm', auth, async (req, res) => {
   } finally { busyPay.delete(c.id); }
 });
 app.get('/api/console/charges', adminAuth, (req, res) => res.json((db.charges || []).slice().reverse()));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', index: false }));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 // React TSX app (production build) at /app + per-page routes
 app.get(/^\/app(\/.*)?$/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'app', 'index.html')));
