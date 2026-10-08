@@ -11,8 +11,30 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || 'else-admin-123';
 const DB_FILE = path.join(__dirname, 'db.json');
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
+
+// ---------- secure cookie auth ----------
+const COOKIE_NAME = 'else_token';
+const COOKIE_OPTS = {
+  httpOnly: true,        // JS can't read (XSS safe)
+  sameSite: 'lax',       // CSRF protection
+  secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
+  maxAge: 12 * 60 * 60 * 1000, // 12h session
+  path: '/',
+};
+function setAuthCookie(res, token) {
+  res.setHeader('Set-Cookie', COOKIE_NAME + '=' + encodeURIComponent(token) + '; ' +
+    Object.entries(COOKIE_OPTS).map(([k, v]) => typeof v === 'boolean' ? (v ? k : '') : k + '=' + v).filter(Boolean).join('; ') + '; Path=/');
+}
+function clearAuthCookie(res) {
+  res.setHeader('Set-Cookie', COOKIE_NAME + '=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+}
+function readAuthCookie(req) {
+  const h = req.headers.cookie || '';
+  const m = h.split(';').map(s => s.trim()).find(s => s.startsWith(COOKIE_NAME + '='));
+  return m ? decodeURIComponent(m.slice(COOKIE_NAME.length + 1)) : null;
+}
 
 // ---------- extreme security ----------
 app.use((req, res, next) => {
@@ -246,7 +268,8 @@ function credit(user, amount, reason, type = 'earn') {
 }
 function auth(req, res, next) {
   const h = req.headers.authorization || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+  let token = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!token) token = readAuthCookie(req); // secure httpOnly cookie fallback
   if (!token) return res.status(401).json({ error: 'login required' });
   const id = verifyToken(token); // forged tokens rejected
   if (!id) return res.status(401).json({ error: 'bad token, login again' });
@@ -335,6 +358,7 @@ app.post('/api/auth/login', (req, res) => {
     user.isEmulator = !!isEmulator; user.isVpn = !!isVpn;
     save();
     const token = signToken(user.id);
+    setAuthCookie(res, token);
     logEvent('login', user.name + (user.isAdmin ? ' [admin]' : ''));
     return res.json({ token, user: publicUser(user) });
   }
@@ -416,6 +440,7 @@ app.post('/api/auth/signup', (req, res) => {
   db.users.push(user); save();
   logEvent('signup', user.name + ' @' + uname);
   const token = signToken(user.id);
+  setAuthCookie(res, token);
   res.json({ token, user: publicUser(user) });
 });
 function publicUser(u) {
@@ -630,6 +655,12 @@ app.get('/api/me', auth, (req, res) => {
     return res.status(401).json({ error: 'session expired, login again' });
   }
   res.json({ user: publicUser(req.user) });
+});
+// logout: clear cookie
+app.post('/api/auth/logout', (req, res) => {
+  clearAuthCookie(res);
+  logEvent('logout', req.user ? req.user.name : 'anon');
+  res.json({ ok: true });
 });
 // test/reset helper (admin only)
 app.post('/api/admin/reset-cooldown', adminAuth, (req, res) => {

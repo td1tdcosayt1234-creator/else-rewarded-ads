@@ -45,10 +45,11 @@ export function getDeviceId(): string {
 
 export async function req<T>(path: string, method = 'GET', body?: unknown, admin = false): Promise<T> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  // auth via secure httpOnly cookie (fallback: localStorage token for old sessions)
   const tok = getToken();
   if (tok) h.Authorization = 'Bearer ' + tok;
   if (admin) h['x-admin-key'] = localStorage.getItem('else_admin_key') || 'else-admin-123';
-  const r = await fetch(path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(path, { method, headers: h, body: body ? JSON.stringify(body) : undefined, credentials: 'include' });
   if (r.status === 401 || r.status === 403) {
     // login must: only nuke user session when a USER token was sent and rejected.
     // Admin-key failures must not log the user out.

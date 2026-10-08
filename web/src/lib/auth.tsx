@@ -32,10 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (identifier: string, password: string) => {
     const r = await api.login(identifier, password);
-    setToken(r.token);
+    setToken(r.token); // backup; server also sets httpOnly cookie
     setUser(r.user);
   };
-  const logout = () => { clearToken(); setUser(null); };
-
+  const logout = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+    clearToken(); setUser(null);
+  };
   return <Ctx.Provider value={{ user, loading, login, logout, refresh }}>{children}</Ctx.Provider>;
 }
