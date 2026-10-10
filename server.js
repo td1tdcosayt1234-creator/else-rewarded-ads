@@ -46,19 +46,23 @@ app.use((req, res, next) => {
 
 // ---------- secure cookie auth ----------
 const COOKIE_NAME = 'else_token';
+// Shared cookie across elsepay.indevs.in, app.elsepay.indevs.in (and api host),
+// so one login works everywhere. Set COOKIE_DOMAIN="" to force host-only cookies.
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN !== undefined ? process.env.COOKIE_DOMAIN : '.elsepay.indevs.in';
 const COOKIE_OPTS = {
   httpOnly: true,        // JS can't read (XSS safe)
   sameSite: 'lax',       // CSRF protection
   secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
   maxAge: 12 * 60 * 60 * 1000, // 12h session
   path: '/',
+  domain: COOKIE_DOMAIN, // shared subdomain session
 };
 function setAuthCookie(res, token) {
   res.setHeader('Set-Cookie', COOKIE_NAME + '=' + encodeURIComponent(token) + '; ' +
-    Object.entries(COOKIE_OPTS).map(([k, v]) => typeof v === 'boolean' ? (v ? k : '') : k + '=' + v).filter(Boolean).join('; ') + '; Path=/');
+    Object.entries(COOKIE_OPTS).map(([k, v]) => (typeof v === 'boolean' ? (v ? k : '') : (v ? k + '=' + v : ''))).filter(Boolean).join('; ') + '; Path=/');
 }
 function clearAuthCookie(res) {
-  res.setHeader('Set-Cookie', COOKIE_NAME + '=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+  res.setHeader('Set-Cookie', COOKIE_NAME + '=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' + (COOKIE_DOMAIN ? '; Domain=' + COOKIE_DOMAIN : ''));
 }
 function readAuthCookie(req) {
   const h = req.headers.cookie || '';

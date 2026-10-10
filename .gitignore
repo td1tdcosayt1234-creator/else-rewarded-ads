@@ -9,3 +9,6 @@ db.json
 .cf-token
 
 .admin-key
+
+.tunnel-token
+tunnel.token
