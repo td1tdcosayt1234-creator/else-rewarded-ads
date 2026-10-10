@@ -88,12 +88,14 @@ echo.
 echo ============================================
 echo  Verifying...
 echo ============================================
-curl -s -o NUL -w "  /app        -> %%{http_code}\n" https://elsepay.indevs.in/app
-curl -s -o NUL -w "  /admin      -> %%{http_code}\n" https://elsepay.indevs.in/admin
-curl -s -o NUL -w "  /api/config -> %%{http_code}\n" https://elsepay.indevs.in/api/config
+curl -s -o NUL -w "  /app          -> %%{http_code}\n" https://elsepay.indevs.in/app
+curl -s -o NUL -w "  /admin        -> %%{http_code}\n" https://elsepay.indevs.in/admin
+curl -s -o NUL -w "  /api/config   -> %%{http_code}\n" https://elsepay.indevs.in/api/config
+curl -s -o NUL -w "  api subdomain -> %%{http_code}\n" https://api.elsepay.indevs.in/api/config
 echo.
 echo  App   : https://elsepay.indevs.in/app
 echo  Admin : https://elsepay.indevs.in/admin
+echo  API   : https://api.elsepay.indevs.in/api/config
 echo  Stop  : deploy\stop-elsepay.bat
 echo ============================================
 endlocal

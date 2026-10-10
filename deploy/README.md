@@ -9,6 +9,11 @@ Node অ্যাপ লোকালি চলছে, Cloudflare Tunnel দি�
 | https://elsepay.indevs.in/app | ইউজার অ্যাপ (mobile UI, `/app` route) |
 | https://elsepay.indevs.in/admin | Admin console |
 | https://elsepay.indevs.in/api/* | API |
+| https://api.elsepay.indevs.in/api/* | API (dedicated subdomain) |
+
+`api.elsepay.indevs.in` একই origin (`localhost:3002`) — তাই `/app`, `/admin` ও serve করে,
+কিন্তু মূল উদ্দেশ্য API; frontend থেকে base URL বসাও:
+`const API = 'https://api.elsepay.indevs.in'`
 
 > নোট: `/` (root) ইচ্ছাকৃতভাবে 404 — `server.js:947-950` অনুযায়ী static mount `index:false` সহ, অ্যাপ `/app`-এ, admin `/admin`-এ।
 
@@ -31,6 +36,7 @@ Zone `elsepay.indevs.in` (id `35f49bacf5869deca9312f23cf6c3e99`):
 
 ```
 CNAME elsepay.indevs.in  →  343eef94-77fb-460a-b5ab-d8b2ab2a278a.cfargotunnel.com  proxied=true ttl=auto
+CNAME api.elsepay.indevs.in →  343eef94-77fb-460a-b5ab-d8b2ab2a278a.cfargotunnel.com  proxied=true ttl=auto
 ```
 
 ## Tunnel ingress (remote config)
@@ -42,6 +48,7 @@ CNAME elsepay.indevs.in  →  343eef94-77fb-460a-b5ab-d8b2ab2a278a.cfargotunnel.
     { "hostname": "dash.elsemail.indevs.in",   "service": "http://localhost:3000" },
     { "hostname": "codebridge.elsemail.indevs.in", "service": "http://localhost:3001" },
     { "hostname": "elsepay.indevs.in",         "service": "http://localhost:3002" },
+    { "hostname": "api.elsepay.indevs.in",      "service": "http://localhost:3002" },
     { "service": "http_status:404" }
   ]
 }
