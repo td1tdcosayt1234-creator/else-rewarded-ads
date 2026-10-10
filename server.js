@@ -14,14 +14,25 @@ const DB_FILE = path.join(__dirname, 'db.json');
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 
-// ---------- host scope: api subdomain = billing/API only ----------
-// api.elsepay.indevs.in  -> only the billing/gateway API surface below
-// elsepay.indevs.in      -> home page + earn app + admin console (unchanged)
-const API_HOST = (process.env.API_HOST || 'api.elsepay.indevs.in').toLowerCase();
-const APP_HOST = (process.env.PUBLIC_URL || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+// ---------- host routing ----------
+// elsepay.indevs.in       -> site only: landing page, /docs, /privacy (rest redirects to app)
+// app.elsepay.indevs.in   -> earn app: root, /app, /admin, earn + billing-app API
+// api.elsepay.indevs.in   -> billing/API only
+const SITE_HOST = (process.env.PUBLIC_URL || 'https://elsepay.indevs.in').replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+const APP_SERVER_HOST = 'app.' + SITE_HOST;
+const API_HOST = (process.env.API_HOST || ('api.' + SITE_HOST)).toLowerCase();
+
 function reqHost(req) {
   return String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
 }
+function hostClass(h) {
+  if (h === API_HOST) return 'api';
+  if (h === APP_SERVER_HOST) return 'app';
+  if (h === SITE_HOST) return 'site';
+  return 'other'; // direct IP / unknown host -> treat as app (legacy behaviour)
+}
+function page(name) { return path.join(__dirname, 'public', name); }
+
 // billing surface (key-auth / gateway), safe to expose publicly
 const API_SCOPE = [
   /^\/api\/v1\/.+/,            // merchant gateway (secret key auth)
@@ -32,16 +43,37 @@ const API_SCOPE = [
   /^\/api\/subscription\/my$/,
   /^\/api\/config$/
 ];
+// the only paths that exist on the apex site host
+const SITE_PATHS = ['/', '/docs', '/privacy'];
+
 app.use((req, res, next) => {
-  const h = reqHost(req);
-  const isApi = h === API_HOST || (h.split('.')[0] === 'api' && (!APP_HOST || h.slice(4) === '.' + APP_HOST));
-  if (!isApi) return next();
-  if (API_SCOPE.some(r => r.test(req.path))) return next();
-  return res.status(404).json({
-    error: 'not_found',
-    message: 'This endpoint is not on the API host. Use the app host for the earn app.',
-    api_host: API_HOST
-  });
+  const cls = hostClass(reqHost(req));
+
+  if (cls === 'api') {
+    if (API_SCOPE.some(r => r.test(req.path))) return next();
+    return res.status(404).json({
+      error: 'not_found',
+      message: 'Not on the API host. Earn app: ' + APP_SERVER_HOST + ', docs: ' + SITE_HOST + '/docs',
+      api_host: API_HOST
+    });
+  }
+
+  if (cls === 'site') {
+    if (req.path === '/') return res.sendFile(page('landing.html'));
+    if (req.path === '/docs' || req.path === '/docs/') return res.sendFile(page('docs.html'));
+    if (req.path === '/privacy' || req.path === '/privacy/') return res.sendFile(page('privacy.html'));
+    if (req.path === '/robots.txt') return res.type('text/plain').send(
+      'User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://' + SITE_HOST + '/docs\n');
+    if (req.path === '/favicon.ico' || req.path === '/healthz') return res.status(204).end();
+    // everything else (/, /app, /admin, /api/*) lives on the app host
+    return res.redirect(302, 'https://' + APP_SERVER_HOST + (req.originalUrl || req.url));
+  }
+
+  if (cls === 'app' && (req.path === '/docs' || req.path === '/privacy')) {
+    return res.redirect(302, 'https://' + SITE_HOST + req.path);
+  }
+
+  next();
 });
 
 // ---------- secure cookie auth ----------
@@ -978,11 +1010,21 @@ app.post('/api/pay/:id/confirm', auth, async (req, res) => {
   } finally { busyPay.delete(c.id); }
 });
 app.get('/api/console/charges', adminAuth, (req, res) => res.json((db.charges || []).slice().reverse()));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', index: false }));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', index: false, redirect: false }));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 // ---------- earn app ----------
-// Root of the main domain IS the earn place: elsepay.indevs.in -> earn app.
+// App host root IS the earn place: app.elsepay.indevs.in -> earn app.
 // /app kept for backwards compatibility (existing WebView links).
 app.get(['/', '/app', /^\/app(\/.*)?$/], (req, res) => res.sendFile(path.join(__dirname, 'public', 'app', 'index.html')));
+
+// ---------- SPA deep links ----------
+// Client-side routes (/dashboard, /login, /wallet...) must return the app shell,
+// otherwise a refresh or shared link shows the server's bare 404.
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  if (req.path.startsWith('/api/')) return next();
+  if (hostClass(reqHost(req)) === 'api') return next();
+  return res.sendFile(path.join(__dirname, 'public', 'app', 'index.html'));
+});
 
 app.listen(PORT, () => console.log('Else server on :' + PORT + ' adminKey=' + ADMIN_KEY));

@@ -4,17 +4,31 @@ Node অ্যাপ লোকালি চলছে, Cloudflare Tunnel দি�
 
 ## Live URLs
 
-| Host | কী |
+| Host | কী দেয় |
 |---|---|
-| https://elsepay.indevs.in/ | **ইয়ার্ন অ্যাপ (root = earn place)** |
-| https://elsepay.indevs.in/app | same app (backwards compat / পুরনো WebView links) |
-| https://elsepay.indevs.in/admin | Admin / operator console |
-| https://elsepay.indevs.in/api/* | earn app API |
+| https://elsepay.indevs.in/ | **home/landing page** (site only) |
+| https://elsepay.indevs.in/docs | API documentation |
+| https://elsepay.indevs.in/privacy | privacy policy |
+| https://elsepay.indevs.in/robots.txt | robots |
+| https://app.elsepay.indevs.in/ | **earn app** (dashboard, login, signup) |
+| https://app.elsepay.indevs.in/app | same app (legacy links) |
+| https://app.elsepay.indevs.in/admin | admin console |
+| https://app.elsepay.indevs.in/api/* | earn app API |
 | https://api.elsepay.indevs.in/api/* | **billing/API only** |
 
-Root-এ earn appserve হয় (`app.get(['/', '/app', /^\/app(\/.*)?$/])`) — assets absolute path
-(`/app/assets/*`) ব্যবহার করে, তাই root থেকে লোড হয়। Android WebView-এ শুধু
-`SERVER_URL = https://elsepay.indevs.in` বসালেই হবে, `/app` লাগবে না।
+### Host split (server.js host routing)
+
+```
+elsepay.indevs.in      -> / (landing), /docs, /privacy, /robots.txt ONLY
+                          anything else -> 302 to app.elsepay.indevs.in<path>
+app.elsepay.indevs.in  -> earn app: /, /app, /admin, earn API + SPA deep links
+                          /docs,/privacy -> 302 back to the site host
+api.elsepay.indevs.in  -> billing surface only, else 404
+```
+
+SPA deep links (`/dashboard`, `/login`, …) on the app host return the app shell so a
+refresh or shared link works. `express.static` runs with `redirect:false` so `/app`
+isn't 301'd to `/app/`.
 
 ### Host scope (api subdomain = API/billing only)
 

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API Docs — Else Pay</title>
+<style>
+  :root{--bg:#0b0d12;--card:#12151d;--line:#1e2430;--txt:#e8ecf4;--mut:#94a0b4;--acc:#4f8cff;--acc2:#22c98a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15.5px/1.7 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px}
+  header{position:sticky;top:0;background:rgba(11,13,18,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav{display:flex;align-items:center;gap:16px;height:60px}
+  .logo{font-weight:800}
+  .logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sp{flex:1}
+  .nl{color:var(--mut);font-size:14px}.nl:hover{color:var(--txt)}
+  h1{font-size:34px;margin:34px 0 8px}
+  h2{font-size:20px;margin:38px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:22px 0 8px}
+  p,.lead{color:var(--mut)}
+  code{background:#1a2030;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:13px;color:#cfe0ff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:#0e1118;border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow:auto;font-size:13px;line-height:1.55}
+  pre code{background:none;border:none;padding:0;color:#d8e3f7}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+  th,td{text-align:left;border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.4px}
+  .m{font-weight:700;color:var(--acc2);font-size:12.5px;margin-right:8px}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+  .warn{border-left:3px solid #f0b429}
+  footer{border-top:1px solid var(--line);margin-top:50px;padding:22px 0;color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="wrap"><nav>
+  <div class="logo">Else<span>Pay</span></div><div class="sp"></div>
+  <a class="nl" href="/">Home</a><a class="nl" href="/privacy">Privacy</a>
+  <a class="btn" style="border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-size:14px" href="https://app.elsepay.indevs.in/">App</a>
+</nav></div></header>
+
+<main class="wrap">
+<h1>API Documentation</h1>
+<p class="lead">Else Pay billing API — create charges, list products and accept Else Pay balance at checkout.</p>
+
+<div class="box">
+  <b>Base URLs</b>
+  <table>
+    <tr><td>Billing API</td><td><code>https://api.elsepay.indevs.in</code></td></tr>
+    <tr><td>App / earn API</td><td><code>https://app.elsepay.indevs.in</code></td></tr>
+    <tr><td>Site (this page)</td><td><code>https://elsepay.indevs.in</code></td></tr>
+  </table>
+</div>
+
+<h2>Authentication</h2>
+<p>Billing endpoints (<code>/api/v1/*</code>) are authenticated with your merchant <b>secret key</b>. Create a merchant in the app console (<code>app.elsepay.indevs.in</code> → Developers) to get a key pair:</p>
+<pre><code>publicKey:  else_pk_xxxxxxxx
+secretKey:  else_sk_xxxxxxxx</code></pre>
+<p>Send the secret key on every request:</p>
+<pre><code>curl https://api.elsepay.indevs.in/api/v1/products \
+  -H "x-else-key: else_sk_xxxxxxxx"</code></pre>
+<p>Endpoints under <code>/api/pay/*</code> are public checkout endpoints — they are called by the payer's browser and need no key.</p>
+
+<h2>Products</h2>
+<h3><span class="m">GET</span>/api/v1/products</h3>
+<p>List your active products. Requires <code>x-else-key</code>.</p>
+<pre><code>{
+  "products": [
+    { "id": "prd_1", "name": "Pro plan", "price": 2.5, "currency": "USD", "active": true }
+  ]
+}</code></pre>
+
+<h3><span class="m">POST</span>/api/v1/products</h3>
+<p>Create a product.</p>
+<pre><code>curl -X POST https://api.elsepay.indevs.in/api/v1/products \
+  -H "x-else-key: else_sk_xxxx" -H "Content-Type: application/json" \
+  -d '{"name":"Pro plan","price":2.5,"currency":"USD"}'</code></pre>
+
+<h2>Charges</h2>
+<h3><span class="m">POST</span>/api/v1/charges</h3>
+<p>Create a charge. Returns a checkout URL to send the payer to.</p>
+<pre><code>curl -X POST https://api.elsepay.indevs.in/api/v1/charges \
+  -H "x-else-key: else_sk_xxxx" -H "Content-Type: application/json" \
+  -d '{"productId":"prd_1","reference":"order_123","metadata":{"userId":42}}'
+
+{
+  "id": "ch_abc123",
+  "status": "pending",
+  "amount": 2.5,
+  "currency": "USD",
+  "payUrl": "https://api.elsepay.indevs.in/api/pay/ch_abc123"
+}</code></pre>
+
+<h3><span class="m">GET</span>/api/v1/charges/:id</h3>
+<p>Check a charge's status. Requires <code>x-else-key</code>. Statuses: <code>pending</code>, <code>paid</code>, <code>failed</code>, <code>refunded</code>.</p>
+<pre><code>{ "id": "ch_abc123", "status": "paid", "amount": 2.5, "paidAt": "2026-10-10T10:00:00.000Z" }</code></pre>
+
+<h2>Checkout (payer side)</h2>
+<h3><span class="m">GET</span>/api/pay/:id</h3>
+<p>Hosted checkout page for a charge. Send your user here — no key needed.</p>
+<h3><span class="m">POST</span>/api/pay/:id/confirm</h3>
+<p>Confirms payment from the payer's Else Pay balance.</p>
+
+<h2>Plans &amp; subscriptions</h2>
+<table>
+  <tr><th>Endpoint</th><th>Purpose</th></tr>
+  <tr><td><code>GET /api/plans</code></td><td>List available plans</td></tr>
+  <tr><td><code>GET /api/payments/methods</code></td><td>Enabled payment methods</td></tr>
+  <tr><td><code>POST /api/subscribe</code></td><td>Subscribe the logged-in user to a plan</td></tr>
+  <tr><td><code>GET /api/subscription/my</code></td><td>Current subscription of the caller</td></tr>
+</table>
+
+<h2>Webhooks</h2>
+<p>Set a webhook URL per merchant in the console. Events are POSTed as JSON and signed:</p>
+<pre><code>x-else-signature: t=&lt;unix_seconds&gt;,v1=&lt;hex_hmac_sha256(body, secretKey)&gt;
+x-else-key: &lt;publicKey&gt;</code></pre>
+<p>Verify by recomputing the HMAC over the raw body with your <b>secret key</b> and comparing to <code>v1</code>. Reject if the timestamp is older than 5 minutes.</p>
+<pre><code>const sig = crypto.createHmac('sha256', secretKey).update(t + '.' + rawBody).digest('hex');</code></pre>
+
+<h2>Errors</h2>
+<p>All errors return JSON with an <code>error</code> field and a sensible HTTP status:</p>
+<pre><code>{ "error": "unauthorized" }        // 401 bad/missing key
+{ "error": "not_found" }            // 404
+{ "error": "insufficient_balance" } // 402</code></pre>
+
+<div class="box warn">
+  <b>Scope note</b> — only the billing surface is exposed on <code>api.elsepay.indevs.in</code>. Earn-app endpoints (wallet, tasks, ads, auth) live on <code>app.elsepay.indevs.in</code>. Requests for anything else on the API host return <code>404</code>.
+</div>
+
+<h2>AdMob SSV (earn app)</h2>
+<p>Set your AdMob server-side verification callback to:</p>
+<pre><code>https://app.elsepay.indevs.in/api/ads/ssv</code></pre>
+</main>
+
+<footer><div class="wrap">
+  <a href="/">Home</a> · <a href="/privacy">Privacy</a> · <a href="https://app.elsepay.indevs.in/">App</a>
+</div></footer>
+</body>
+</html>
