@@ -1,5 +1,8 @@
 # Else Pay Hosting — elsepay.indevs.in
 
+Full domain/DNS/tunnel runbook (new machine, new domain, new subdomain):
+**[DOMAIN-SETUP.md](./DOMAIN-SETUP.md)** — section numbers referenced below live there.
+
 Node অ্যাপ লোকালি চলছে, Cloudflare Tunnel দিয়ে `elsepay.indevs.in`-এ live।
 
 ## Live URLs
