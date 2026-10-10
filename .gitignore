@@ -2,3 +2,10 @@ node_modules/
 db.json
 *.log
 .DS_Store
+
+.env
+.env.local
+*.pid
+.cf-token
+
+.admin-key
