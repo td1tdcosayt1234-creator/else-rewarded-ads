@@ -59,6 +59,8 @@ app.use((req, res, next) => {
   }
 
   if (cls === 'site') {
+    // marketing pages must never be cached stale by a browser/CDN
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     if (req.path === '/') return res.sendFile(page('landing.html'));
     if (req.path === '/docs' || req.path === '/docs/') return res.sendFile(page('docs.html'));
     if (req.path === '/privacy' || req.path === '/privacy/') return res.sendFile(page('privacy.html'));
