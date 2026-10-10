@@ -976,7 +976,9 @@ app.post('/api/pay/:id/confirm', auth, async (req, res) => {
 app.get('/api/console/charges', adminAuth, (req, res) => res.json((db.charges || []).slice().reverse()));
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', index: false }));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-// React TSX app (production build) at /app + per-page routes
-app.get(/^\/app(\/.*)?$/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'app', 'index.html')));
+// ---------- earn app ----------
+// Root of the main domain IS the earn place: elsepay.indevs.in -> earn app.
+// /app kept for backwards compatibility (existing WebView links).
+app.get(['/', '/app', /^\/app(\/.*)?$/], (req, res) => res.sendFile(path.join(__dirname, 'public', 'app', 'index.html')));
 
 app.listen(PORT, () => console.log('Else server on :' + PORT + ' adminKey=' + ADMIN_KEY));

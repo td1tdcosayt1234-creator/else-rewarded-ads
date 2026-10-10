@@ -6,10 +6,15 @@ Node অ্যাপ লোকালি চলছে, Cloudflare Tunnel দি�
 
 | Host | কী |
 |---|---|
-| https://elsepay.indevs.in/app | ইউজার অ্যাপ (mobile UI, home + earn) |
+| https://elsepay.indevs.in/ | **ইয়ার্ন অ্যাপ (root = earn place)** |
+| https://elsepay.indevs.in/app | same app (backwards compat / পুরনো WebView links) |
 | https://elsepay.indevs.in/admin | Admin / operator console |
 | https://elsepay.indevs.in/api/* | earn app API |
 | https://api.elsepay.indevs.in/api/* | **billing/API only** |
+
+Root-এ earn appserve হয় (`app.get(['/', '/app', /^\/app(\/.*)?$/])`) — assets absolute path
+(`/app/assets/*`) ব্যবহার করে, তাই root থেকে লোড হয়। Android WebView-এ শুধু
+`SERVER_URL = https://elsepay.indevs.in` বসালেই হবে, `/app` লাগবে না।
 
 ### Host scope (api subdomain = API/billing only)
 
