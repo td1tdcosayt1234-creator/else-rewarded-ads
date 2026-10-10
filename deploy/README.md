@@ -37,10 +37,19 @@ Main host (`elsepay.indevs.in`) অপরিবর্তিত — home + earn a
 
 ```
 Internet → Cloudflare edge (proxied, HTTPS)
-  → elsepay.indevs.in  (CNAME → <tunnel>.cfargotunnel.com)
-  → Cloudflare Tunnel  (id 343eef94-77fb-460a-b5ab-d8b2ab2a278a, name codebridge-web)
-  → ingress: elsepay.indevs.in → http://localhost:3002
+  → elsepay.indevs.in / app.elsepay.indevs.in / api.elsepay.indevs.in
+  → CNAME → 6607a434-05b8-41e9-8140-9114c86459fc.cfargotunnel.com
+  → Cloudflare Tunnel "elsepay-app" (id 6607a434-05b8-41e9-8140-9114c86459fc)
+  → ingress (all three) → http://localhost:3002
 ```
+
+⚠️ **Dedicated tunnel matters.** Else Pay used to share tunnel `codebridge-web`
+(343eef94…) with the codebridge-mcp-web project. That project's `cloudflared`
+kept pushing its own local ingress config, which **deleted our hostnames** and
+made every elsepay URL 404. The dedicated tunnel above fixes that permanently —
+nothing else can rewrite its ingress.
+
+Elsemail/codebridge hosts stay on the old tunnel, untouched.
 
 একই tunnel-এ অন্য সার্ভিসও আছে (নষ্ট হয় না):
 - `elsemail.indevs.in` ও `dash.elsemail.indevs.in` → localhost:3000
@@ -60,11 +69,9 @@ CNAME api.elsepay.indevs.in →  343eef94-77fb-460a-b5ab-d8b2ab2a278a.cfargotunn
 ```json
 {
   "ingress": [
-    { "hostname": "elsemail.indevs.in",        "service": "http://localhost:3000" },
-    { "hostname": "dash.elsemail.indevs.in",   "service": "http://localhost:3000" },
-    { "hostname": "codebridge.elsemail.indevs.in", "service": "http://localhost:3001" },
-    { "hostname": "elsepay.indevs.in",         "service": "http://localhost:3002" },
-    { "hostname": "api.elsepay.indevs.in",      "service": "http://localhost:3002" },
+    { "hostname": "app.elsepay.indevs.in",   "service": "http://localhost:3002" },
+    { "hostname": "elsepay.indevs.in",        "service": "http://localhost:3002" },
+    { "hostname": "api.elsepay.indevs.in",     "service": "http://localhost:3002" },
     { "service": "http_status:404" }
   ]
 }
