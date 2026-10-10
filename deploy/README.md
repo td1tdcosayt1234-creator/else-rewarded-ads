@@ -4,18 +4,29 @@ Node অ্যাপ লোকালি চলছে, Cloudflare Tunnel দি�
 
 ## Live URLs
 
-| URL | কী |
+| Host | কী |
 |---|---|
-| https://elsepay.indevs.in/app | ইউজার অ্যাপ (mobile UI, `/app` route) |
-| https://elsepay.indevs.in/admin | Admin console |
-| https://elsepay.indevs.in/api/* | API |
-| https://api.elsepay.indevs.in/api/* | API (dedicated subdomain) |
+| https://elsepay.indevs.in/app | ইউজার অ্যাপ (mobile UI, home + earn) |
+| https://elsepay.indevs.in/admin | Admin / operator console |
+| https://elsepay.indevs.in/api/* | earn app API |
+| https://api.elsepay.indevs.in/api/* | **billing/API only** |
 
-`api.elsepay.indevs.in` একই origin (`localhost:3002`) — তাই `/app`, `/admin` ও serve করে,
-কিন্তু মূল উদ্দেশ্য API; frontend থেকে base URL বসাও:
-`const API = 'https://api.elsepay.indevs.in'`
+### Host scope (api subdomain = API/billing only)
 
-> নোট: `/` (root) ইচ্ছাকৃতভাবে 404 — `server.js:947-950` অনুযায়ী static mount `index:false` সহ, অ্যাপ `/app`-এ, admin `/admin`-এ।
+`server.js`-এ host-based middleware: `api.elsepay.indevs.in`-এ শুধু নিচের surface, বাকি সব 404:
+
+```
+ALLOW: /api/v1/*              (merchant gateway, secret-key auth)
+       /api/pay/:id, /api/pay/:id/confirm
+       /api/plans, /api/payments/methods, /api/subscribe, /api/subscription/my
+       /api/config
+BLOCK: /app, /admin, static, এবং earn routes (+ /api/console, /api/admin)
+```
+
+Main host (`elsepay.indevs.in`) অপরিবর্তিত — home + earn app + console সব চলে
+(karon `/app` SPA-র ভিতরেই billing console screens আছে, সেগুলো main host থেকে `api/console/*` ডাকে)।
+
+नया endpoint API_SCOPE-এ যোগ করতে হলে `server.js`-এর `API_SCOPE` array-তে regex বসান।
 
 ## Architecture
 

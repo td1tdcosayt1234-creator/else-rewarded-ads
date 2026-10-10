@@ -14,6 +14,36 @@ const DB_FILE = path.join(__dirname, 'db.json');
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 
+// ---------- host scope: api subdomain = billing/API only ----------
+// api.elsepay.indevs.in  -> only the billing/gateway API surface below
+// elsepay.indevs.in      -> home page + earn app + admin console (unchanged)
+const API_HOST = (process.env.API_HOST || 'api.elsepay.indevs.in').toLowerCase();
+const APP_HOST = (process.env.PUBLIC_URL || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+function reqHost(req) {
+  return String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+}
+// billing surface (key-auth / gateway), safe to expose publicly
+const API_SCOPE = [
+  /^\/api\/v1\/.+/,            // merchant gateway (secret key auth)
+  /^\/api\/pay\/.+/,           // checkout page + confirm
+  /^\/api\/plans$/,
+  /^\/api\/payments\/methods$/,
+  /^\/api\/subscribe$/,
+  /^\/api\/subscription\/my$/,
+  /^\/api\/config$/
+];
+app.use((req, res, next) => {
+  const h = reqHost(req);
+  const isApi = h === API_HOST || (h.split('.')[0] === 'api' && (!APP_HOST || h.slice(4) === '.' + APP_HOST));
+  if (!isApi) return next();
+  if (API_SCOPE.some(r => r.test(req.path))) return next();
+  return res.status(404).json({
+    error: 'not_found',
+    message: 'This endpoint is not on the API host. Use the app host for the earn app.',
+    api_host: API_HOST
+  });
+});
+
 // ---------- secure cookie auth ----------
 const COOKIE_NAME = 'else_token';
 const COOKIE_OPTS = {
