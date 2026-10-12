@@ -27,7 +27,7 @@ if exist "%~dp0.admin-key" (
 
 set "TMPDIR=%LOCALAPPDATA%\Temp\1\opencode"
 if not exist "%TMPDIR%" set "TMPDIR=%TEMP%"
-set "TID=343eef94-77fb-460a-b5ab-d8b2ab2a278a"
+set "TID=6607a434-05b8-41e9-8140-9114c86459fc"
 
 REM ---- Cloudflare API token (NEVER hardcode; read from local file) ----
 set "TOKFILE=%~dp0.cf-token"
