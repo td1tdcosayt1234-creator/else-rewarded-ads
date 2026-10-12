@@ -5,7 +5,7 @@ interface Charge { id?: string; charge_id?: string; merchant?: string; product?:
 export default function Checkout() {
   const [list, setList] = useState<Charge[]>([]);
   const load = async () => {
-    const r = await fetch('/api/console/charges', { headers: { 'x-admin-key': localStorage.getItem('else_admin_key') || 'else-admin-123' } });
+    const r = await fetch('/api/console/charges', { headers: { 'x-admin-key': localStorage.getItem('else_admin_key') || '' } });
     setList(await r.json());
   };
   useEffect(() => { load(); }, []);

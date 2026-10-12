@@ -11,7 +11,7 @@ export default function Merchants() {
   const [err, setErr] = useState('');
   const load = async () => {
     try {
-      const r = await fetch('/api/console/merchants', { headers: { 'x-admin-key': localStorage.getItem('else_admin_key') || 'else-admin-123' } });
+      const r = await fetch('/api/console/merchants', { headers: { 'x-admin-key': localStorage.getItem('else_admin_key') || '' } });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'load fail');
       setList(j); setErr('');
@@ -19,13 +19,13 @@ export default function Merchants() {
   };
   useEffect(() => { load(); }, []);
   const create = async () => {
-    const r = await fetch('/api/console/merchants', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-key': localStorage.getItem('else_admin_key') || 'else-admin-123' }, body: JSON.stringify({ name, website: site, webhookUrl: hook }) });
+    const r = await fetch('/api/console/merchants', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-key': localStorage.getItem('else_admin_key') || '' }, body: JSON.stringify({ name, website: site, webhookUrl: hook }) });
     const m = await r.json();
     if (m.secretKey) { setSecret('SECRET (shown once - copy it): ' + m.secretKey + ' | PUBLIC: ' + m.publicKey); }
     setName(''); load();
   };
   const showSecret = async (id: string) => {
-    const r = await fetch('/api/console/merchants/' + id + '/secret', { headers: { 'x-admin-key': localStorage.getItem('else_admin_key') || 'else-admin-123' } });
+    const r = await fetch('/api/console/merchants/' + id + '/secret', { headers: { 'x-admin-key': localStorage.getItem('else_admin_key') || '' } });
     const j = await r.json();
     alert('PUBLIC: ' + j.publicKey + '\nSECRET: ' + j.secretKey);
   };

@@ -48,7 +48,7 @@ export async function req<T>(path: string, method = 'GET', body?: unknown, admin
   // auth via secure httpOnly cookie (fallback: localStorage token for old sessions)
   const tok = getToken();
   if (tok) h.Authorization = 'Bearer ' + tok;
-  if (admin) h['x-admin-key'] = localStorage.getItem('else_admin_key') || 'else-admin-123';
+  if (admin) h['x-admin-key'] = localStorage.getItem('else_admin_key') || '';
   const r = await fetch(path, { method, headers: h, body: body ? JSON.stringify(body) : undefined, credentials: 'include' });
   if (r.status === 401 || r.status === 403) {
     // login must: only nuke user session when a USER token was sent and rejected.
@@ -71,7 +71,7 @@ export const api = {
   signup: (b: { firstName: string; lastName: string; country: string; city: string; zip: string; username: string; birthday: string; email: string; password: string; referralCode?: string }) =>
     req<{ token: string; user: User }>('/api/auth/signup', 'POST', { ...b, deviceId: getDeviceId() }),
   me: () => req<{ user: User }>('/api/me'),
-  adStart: () => req<{ sessionId: string }>('/api/ads/rewarded/start', 'POST', {}),
+  adStart: () => req<{ sessionId: string; adSeconds: number }>('/api/ads/rewarded/start', 'POST', {}),
   adComplete: (sessionId: string) => req<{ reward: number; balance: number; level: number; todayCount: number }>('/api/ads/rewarded/complete', 'POST', { sessionId }),
   interstitial: () => req<{ ok: boolean }>('/api/ads/interstitial/view', 'POST', {}),
   banner: () => req<{ ok: boolean }>('/api/ads/banner/impression', 'POST', {}),

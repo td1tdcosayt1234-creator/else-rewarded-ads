@@ -22,7 +22,7 @@ const links = [
 ];
 
 export default function ConsoleLayout() {
-  const key = localStorage.getItem('else_admin_key') || 'else-admin-123';
+  const key = localStorage.getItem('else_admin_key') || '';
   return (
     <div className="sec" style={{ maxWidth: 900, margin: 'auto' }}>
       <div className="card" style={{ background: 'linear-gradient(160deg,#7b5cff,#4a2bd8)', color: '#fff' }}>
@@ -30,7 +30,7 @@ export default function ConsoleLayout() {
         <div className="small" style={{ color: '#e6deff' }}>Paddle-style billing - only Else payment</div>
       </div>
       <div className="card"><h3>Admin key</h3>
-        <input type="password" defaultValue={key} onChange={e => localStorage.setItem('else_admin_key', e.target.value)} />
+        <input type="password" placeholder="paste admin key" defaultValue={key} onChange={e => localStorage.setItem('else_admin_key', e.target.value)} />
         <div className="small">The console API runs with this key. <a href="/app/dashboard">Back to app</a></div>
       </div>
       <div className="card" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

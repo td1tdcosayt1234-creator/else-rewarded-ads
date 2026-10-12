@@ -1,5 +1,6 @@
 // Else - Server Based Rewarded Ads Backend
 // Web + Android WebView (same API). Run: npm install && npm start
+try { require('dotenv').config(); } catch {}
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -7,8 +8,11 @@ const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1); // behind Cloudflare Tunnel: real client IP comes from CF headers
 const PORT = process.env.PORT || 3000;
-const ADMIN_KEY = process.env.ADMIN_KEY || 'else-admin-123';
+const ADMIN_KEY = process.env.ADMIN_KEY || (process.env.NODE_ENV === 'production' ? '' : 'else-admin-123');
+if (!ADMIN_KEY) { console.error('FATAL: ADMIN_KEY env is required in production'); process.exit(1); }
 const DB_FILE = path.join(__dirname, 'db.json');
 
 app.use(cors({ origin: true, credentials: true }));
@@ -126,9 +130,18 @@ app.use((req, res, next) => {
 });
 // in-memory rate limiter (per IP + route group)
 const rlBuckets = new Map();
+// real client IP behind Cloudflare Tunnel (spoofable headers are only trusted
+// because cloudflared overwrites them at the edge for proxied hostnames)
+function realIp(req) {
+  const cf = req.headers['cf-connecting-ip'];
+  if (cf) return String(cf).split(',')[0].trim();
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return req.ip || req.socket.remoteAddress || 'na';
+}
 function rateLimit(max, windowMs) {
   return (req, res, next) => {
-    const ip = req.ip || req.socket.remoteAddress || 'na';
+    const ip = realIp(req);
     const key = ip + ':' + max + ':' + windowMs;
     const now = Date.now();
     let arr = rlBuckets.get(key) || [];
@@ -139,6 +152,14 @@ function rateLimit(max, windowMs) {
     next();
   };
 }
+// drop stale buckets so long-running processes don't grow memory
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, arr] of rlBuckets) {
+    const fresh = arr.filter(t => now - t < 5 * 60 * 1000);
+    if (!fresh.length) rlBuckets.delete(k); else rlBuckets.set(k, fresh);
+  }
+}, 5 * 60 * 1000).unref();
 app.use('/api/auth/', rateLimit(10, 60 * 1000)); // login/signup: 10 per min
 app.use('/api/', rateLimit(150, 60 * 1000)); // global: 150 per min
 // admin brute-force lockout: 5 wrong keys -> 5 min block
@@ -258,9 +279,11 @@ function logEvent(type, msg) { db.events.push({ id: nid('e'), type, msg: String(
 function adminKey() { return db.config.adminKeyOverride || ADMIN_KEY; }
 // server secret for signed tokens (persisted, never exposed)
 if (!db.serverSecret) { db.serverSecret = crypto.randomBytes(32).toString('hex'); save(); }
-// HMAC-signed auth tokens (old base64-only tokens are rejected)
+// HMAC-signed auth tokens with issue time (12h TTL enforced in auth()).
+// Legacy tokens (plain userId body, no iat) are still accepted but exempt
+// from TTL so existing sessions don't break on upgrade.
 function signToken(userId) {
-  const body = Buffer.from(userId, 'utf8').toString('base64url');
+  const body = Buffer.from(JSON.stringify({ u: userId, iat: Date.now() }), 'utf8').toString('base64url');
   const sig = crypto.createHmac('sha256', db.serverSecret).update(body).digest('base64url');
   return body + '.' + sig;
 }
@@ -270,11 +293,38 @@ function verifyToken(token) {
   const sig = crypto.createHmac('sha256', db.serverSecret).update(parts[0]).digest('base64url');
   const a = Buffer.from(sig), b = Buffer.from(parts[1]);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const o = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    if (o && typeof o.u === 'string') return o.u;
+  } catch {}
   try { return Buffer.from(parts[0], 'base64url').toString('utf8'); } catch { return null; }
 }
-// admin password hashing (salted sha256, plaintext removed after migration)
+function tokenIat(token) {
+  try {
+    const o = JSON.parse(Buffer.from(String(token || '').split('.')[0], 'base64url').toString('utf8'));
+    return (o && o.iat) || 0;
+  } catch { return 0; }
+}
+const SESSION_TTL = 12 * 60 * 60 * 1000;
+// admin password hashing (scrypt; legacy sha256 auto-upgrades on next login)
 function hashAdminPass(pass, salt) {
-  return crypto.createHash('sha256').update(salt + '::' + pass).digest('hex');
+  return 'scrypt$' + crypto.scryptSync(String(pass), salt, 32).toString('hex');
+}
+function checkAdminPass(pass) {
+  const h = db.config.adminPassHash;
+  if (!h) return false;
+  if (!String(h.hash || '').startsWith('scrypt$')) {
+    // legacy sha256 check, then upgrade
+    const legacy = crypto.createHash('sha256').update(h.salt + '::' + String(pass || '')).digest('hex');
+    const a = Buffer.from(h.hash), b = Buffer.from(legacy);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    const salt = crypto.randomBytes(8).toString('hex');
+    db.config.adminPassHash = { salt, hash: hashAdminPass(String(pass), salt) };
+    save();
+    return true;
+  }
+  const a = Buffer.from(h.hash), b = Buffer.from(hashAdminPass(String(pass || ''), h.salt));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 if (db.config.adminPassword && !db.config.adminPassHash) {
   const salt = crypto.randomBytes(8).toString('hex');
@@ -282,17 +332,16 @@ if (db.config.adminPassword && !db.config.adminPassHash) {
   delete db.config.adminPassword;
   save();
 }
-function checkAdminPass(pass) {
-  const h = db.config.adminPassHash;
-  if (!h) return false;
-  const a = Buffer.from(h.hash), b = Buffer.from(hashAdminPass(String(pass || ''), h.salt));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
 // webhook HMAC signature (timestamp + anti-replay)
 function webhookSig(secret, ts, body) {
   return crypto.createHmac('sha256', secret).update(ts + '.' + body).digest('hex');
 }
-function save() { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); }
+function save() {
+  // atomic write: crash mid-write must never leave a half-written db.json
+  const tmp = DB_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
+  fs.renameSync(tmp, DB_FILE);
+}
 function nid(p) { return p + '_' + (db.seq++) + '_' + Date.now().toString(36); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -344,11 +393,16 @@ function auth(req, res, next) {
   const user = db.users.find(u => u.id === id);
   if (!user) return res.status(401).json({ error: 'user not found' });
   if (user.banned) return res.status(403).json({ error: 'banned' });
+  // session TTL: new tokens carry iat; legacy tokens (no iat) are exempt
+  const iat = tokenIat(token);
+  if (iat && !user.isAdmin && Date.now() - iat > SESSION_TTL) {
+    return res.status(401).json({ error: 'session expired, login again' });
+  }
   req.user = user;
   next();
 }
 function adminAuth(req, res, next) {
-  const ip = req.ip || req.socket.remoteAddress || 'na';
+  const ip = realIp(req);
   if (adminBlocked(ip)) return res.status(429).json({ error: 'admin locked 5 min (too many wrong keys)' });
   if (req.headers['x-admin-key'] !== adminKey()) {
     const f = adminFails.get(ip) || { count: 0, last: 0 };
@@ -378,11 +432,21 @@ app.get('/api/config', (req, res) => {
 
 // ---------- auth: email/username + password, 2-step signup ----------
 // per-user password hashing (salted sha256)
+// per-user password hashing (scrypt; legacy sha256 auto-upgrades on next login)
 function hashUserPass(pass, salt) {
-  return crypto.createHash('sha256').update(salt + '::else::' + pass).digest('hex');
+  return 'scrypt$' + crypto.scryptSync(String(pass), salt, 32).toString('hex');
 }
 function checkUserPass(user, pass) {
   if (!user.passHash) return false;
+  if (!String(user.passHash.hash || '').startsWith('scrypt$')) {
+    const legacy = crypto.createHash('sha256').update(user.passHash.salt + '::else::' + String(pass || '')).digest('hex');
+    const a = Buffer.from(user.passHash.hash), b = Buffer.from(legacy);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    const salt = crypto.randomBytes(8).toString('hex');
+    user.passHash = { salt, hash: hashUserPass(String(pass), salt) };
+    save();
+    return true;
+  }
   const a = Buffer.from(user.passHash.hash), b = Buffer.from(hashUserPass(String(pass || ''), user.passHash.salt));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
@@ -408,12 +472,12 @@ app.post('/api/auth/login', (req, res) => {
     const idKey = String(identifier).trim().toLowerCase();
     if (userBlocked(idKey)) return res.status(429).json({ error: 'account locked 15 min - too many wrong passwords' });
     const user = findByIdentifier(identifier);
-    if (!user) return res.status(401).json({ error: 'account not found' });
+    if (!user) return res.status(401).json({ error: 'invalid credentials' });
     if (user.banned) return res.status(403).json({ error: 'banned' });
     const ok = user.isAdmin ? checkAdminPass(password) : checkUserPass(user, password);
     if (!ok) {
       recordUserFail(idKey);
-      return res.status(401).json({ error: 'wrong password' });
+      return res.status(401).json({ error: 'invalid credentials' });
     }
     clearUserFails(idKey);
     // device lock: bind first device, block others
@@ -447,7 +511,7 @@ app.post('/api/auth/login', (req, res) => {
       if (r) referredBy = r.id;
     }
     user = {
-      id: nid('u'), deviceId, name: (name || 'User').slice(0, 30),
+      id: nid('u'), deviceId, name: sanitize(String(name || 'User').slice(0, 30), 30),
       country: code, balance: 0, totalAds: 0, spinTickets: 1,
       referralCode: 'ELSE-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
       referredBy, banned: false, createdAt: new Date().toISOString(),
@@ -519,6 +583,24 @@ function levelOf(u) { const l = [...db.config.levels].reverse().find(x => (u.tot
 app.get('/api/me', auth, (req, res) => res.json({ user: publicUser(req.user) }));
 
 // ---------- rewarded ads (B5 + C9 + C10) ----------
+// Anti-fraud: the server enforces a minimum watch time per session.
+// Sessions are single-use, bound to the user, expire after 10 min.
+// (Full AdMob SSV signature check gets added once the AdMob publisher
+// account exists: set a postback secret in console -> webhooks, then verify
+// `signature`/`key_id` against Google's verifier keys here.)
+const AD_SECONDS = 10;
+function consumeAdSession(sessionId, userId) {
+  const s = pendingSessions.get(sessionId);
+  if (!s || s.userId !== userId) return { error: 'invalid session' };
+  if (Date.now() - s.createdAt > 10 * 60 * 1000) { delSession(sessionId); return { error: 'session expired' }; }
+  const needMs = (AD_SECONDS - 1) * 1000;
+  const waited = Date.now() - s.createdAt;
+  if (waited < needMs) {
+    return { error: 'watch full ad', retryAfterSec: Math.ceil((needMs - waited) / 1000) };
+  }
+  delSession(sessionId); // anti double-spend
+  return { session: s };
+}
 // Step 1: start (cooldown + daily limit check) -> sessionId
 app.post('/api/ads/rewarded/start', auth, (req, res) => {
   const u = req.user, c = db.config;
@@ -532,36 +614,42 @@ app.post('/api/ads/rewarded/start', auth, (req, res) => {
   if (wait > 0) return res.status(429).json({ error: 'cooldown', retryAfterSec: wait });
   const sid = nid('ad');
   addSession(sid, { userId: u.id, createdAt: Date.now(), country: u.country });
-  res.json({ sessionId: sid, adSeconds: 5, note: 'Show AdMob rewarded now, then call /complete' });
+  res.json({ sessionId: sid, adSeconds: AD_SECONDS, note: 'Show AdMob rewarded now, then call /complete' });
 });
-// Step 2: complete (SSV verify mock) -> credit lowest-by-country rate
+// Step 2: complete (server-verified watch time) -> credit lowest-by-country rate
 app.post('/api/ads/rewarded/complete', auth, (req, res) => {
   const { sessionId } = req.body || {};
-  const s = pendingSessions.get(sessionId);
-  if (!s || s.userId !== req.user.id) return res.status(400).json({ error: 'invalid session (SSV fail)' });
-  if (Date.now() - s.createdAt > 10 * 60 * 1000) { delSession(sessionId); return res.status(400).json({ error: 'session expired' }); }
-  delSession(sessionId); // anti double-spend
+  const done = consumeAdSession(sessionId, req.user.id);
+  if (done.error) {
+    const code = done.error === 'watch full ad' ? 429 : 400;
+    return res.status(code).json({ error: done.error, ...(done.retryAfterSec ? { retryAfterSec: done.retryAfterSec } : {}) });
+  }
+  const s = done.session;
   const u = req.user;
   const reward = rewardFor(s.country, u);
   u.lastAdAt = Date.now(); u.todayCount = (u.todayCount || 0) + 1; u.totalAds = (u.totalAds || 0) + 1;
   u.spinTickets = (u.spinTickets || 0) + 1;
   credit(u, reward, `Rewarded ad (${s.country})`);
-  db.ad_views.push({ id: nid('v'), userId: u.id, kind: 'rewarded', sessionId, country: s.country, reward, at: new Date().toISOString(), verified: 'ssv-mock' });
+  db.ad_views.push({ id: nid('v'), userId: u.id, kind: 'rewarded', sessionId, country: s.country, reward, at: new Date().toISOString(), verified: 'server-watch' });
   save();
   res.json({ reward, balance: u.balance, level: levelOf(u), todayCount: u.todayCount });
 });
-// AdMob real SSV callback (GET) - production e Google signature verify add hobe
+// AdMob SSV callback (GET): same watch-time + single-use rules as /complete.
+// Unsigned hits are logged and rejected once a postback secret is configured
+// (console -> webhooks -> postbackSecret); until then it behaves like complete.
 app.get('/api/ads/ssv', (req, res) => {
-  const { user_id, session_id } = req.query;
+  const { user_id, session_id, key } = req.query;
+  const secret = (db.config.webhooks && db.config.webhooks.postbackSecret) || '';
+  if (secret && key !== secret) { logEvent('ssv', 'rejected bad postback key'); return res.status(403).send('fail'); }
   const u = db.users.find(x => x.id === user_id);
-  const s = pendingSessions.get(session_id);
-  if (!u || !s) return res.status(400).send('fail');
-  // TODO: verify signature with Google public keys (admob_ssv_crypto)
-  delSession(session_id);
+  if (!u) return res.status(400).send('fail');
+  const done = consumeAdSession(session_id, u.id);
+  if (done.error) { logEvent('ssv', 'rejected ' + done.error); return res.status(400).send('fail'); }
+  const s = done.session;
   const reward = rewardFor(s.country, u);
   u.lastAdAt = Date.now(); u.todayCount = (u.todayCount || 0) + 1; u.totalAds = (u.totalAds || 0) + 1;
   credit(u, reward, `Rewarded ad SSV (${s.country})`);
-  db.ad_views.push({ id: nid('v'), userId: u.id, kind: 'rewarded', sessionId: session_id, country: s.country, reward, at: new Date().toISOString(), verified: 'ssv' });
+  db.ad_views.push({ id: nid('v'), userId: u.id, kind: 'rewarded', sessionId: session_id, country: s.country, reward, at: new Date().toISOString(), verified: 'ssv-callback' });
   save();
   res.send('ok');
 });
@@ -628,10 +716,13 @@ app.get('/api/leaderboard', auth, (req, res) => {
 });
 app.post('/api/withdraw', auth, (req, res) => {
   let { amount, method, account } = req.body || {};
-  amount = Number(amount);
+  amount = Math.round(Number(amount) * 10000) / 10000;
   const min = db.config.minWithdraw; // $10
-  if (!amount || isNaN(amount) || amount < min) return res.status(400).json({ error: `min $${min}` });
+  if (!isFinite(amount) || amount < min) return res.status(400).json({ error: `min $${min}` });
   if (req.user.balance < amount) return res.status(400).json({ error: 'low balance' });
+  method = String(method || '').slice(0, 40);
+  account = String(account || '').trim().slice(0, 120);
+  if (account.length < 3) return res.status(400).json({ error: 'valid payout account required' });
   // Else Pay: method must be enabled + fee calc (real)
   const prov = (db.config.billing.providers || []).find(p => p.name === method || p.id === method);
   if (prov && !prov.enabled) return res.status(400).json({ error: method + ' disabled by admin' });
@@ -715,15 +806,6 @@ app.post('/api/admin/config', adminAuth, (req, res) => {
   if (b.notice) db.config.notice = { ...db.config.notice, ...b.notice };
   save(); res.json(db.config);
 });
-// session inactivity timeout: tokens older than 12h must re-login (checked on /api/me)
-const SESSION_TTL = 12 * 60 * 60 * 1000;
-app.get('/api/me', auth, (req, res) => {
-  const age = Date.now() - new Date(req.user.createdAt).getTime();
-  if (age > SESSION_TTL && !req.user.isAdmin) {
-    return res.status(401).json({ error: 'session expired, login again' });
-  }
-  res.json({ user: publicUser(req.user) });
-});
 // logout: clear cookie
 app.post('/api/auth/logout', (req, res) => {
   clearAuthCookie(res);
@@ -751,9 +833,15 @@ app.get('/api/console/overview', adminAuth, (req, res) => {
 app.get('/api/console/billing', adminAuth, (req, res) => res.json(db.config.billing));
 app.post('/api/console/billing', adminAuth, (req, res) => {
   const b = req.body || {};
-  if (b.currency) db.config.billing.currency = b.currency;
-  if (b.mode) db.config.billing.mode = b.mode;
-  if (Array.isArray(b.providers)) db.config.billing.providers = b.providers;
+  if (b.currency) db.config.billing.currency = String(b.currency).slice(0, 8);
+  if (b.mode) db.config.billing.mode = String(b.mode).slice(0, 24);
+  if (Array.isArray(b.providers)) {
+    db.config.billing.providers = b.providers.filter(p => p && p.id && p.name).map(p => ({
+      id: String(p.id).slice(0, 40), name: String(p.name).slice(0, 40),
+      enabled: !!p.enabled, feePct: Math.min(100, Math.max(0, Number(p.feePct || 0))),
+      minAmount: Math.max(0, Number(p.minAmount || 0)), hint: String(p.hint || '').slice(0, 120),
+    }));
+  }
   if (b.minWithdraw !== undefined) db.config.minWithdraw = Number(b.minWithdraw);
   save(); res.json(db.config.billing);
 });
@@ -765,7 +853,11 @@ app.post('/api/console/billing/provider/:id/toggle', adminAuth, (req, res) => {
 app.post('/api/console/billing/provider/:id', adminAuth, (req, res) => {
   const p = (db.config.billing.providers || []).find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'no provider' });
-  Object.assign(p, req.body || {});
+  const { id, ...safe } = req.body || {};
+  if (safe.feePct !== undefined) safe.feePct = Math.min(100, Math.max(0, Number(safe.feePct || 0)));
+  if (safe.name !== undefined) safe.name = String(safe.name).slice(0, 40);
+  if (safe.hint !== undefined) safe.hint = String(safe.hint).slice(0, 120);
+  Object.assign(p, safe);
   save(); res.json(p);
 });
 app.get('/api/console/auth-settings', adminAuth, (req, res) => res.json(db.config.authSettings));
@@ -825,7 +917,9 @@ app.post('/api/console/products', adminAuth, (req, res) => {
 app.post('/api/console/products/:id', adminAuth, (req, res) => {
   const p = db.config.products.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'no product' });
-  const { id, merchantId, ...safe } = req.body || {};
+  const { id, merchantId, secretKey, publicKey, ...safe } = req.body || {};
+  if (safe.price !== undefined) safe.price = Math.max(0, Number(safe.price || 0));
+  if (safe.name !== undefined) safe.name = String(safe.name).slice(0, 60);
   Object.assign(p, safe); save(); logEvent('product', 'updated ' + p.name);
   res.json(p);
 });
@@ -874,6 +968,11 @@ app.post('/api/console/plans/:id', adminAuth, (req, res) => {
   const p = db.config.plans.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'no plan' });
   const { id, ...safe } = req.body || {};
+  if (safe.price !== undefined) safe.price = Math.max(0, Number(safe.price || 0));
+  if (safe.days !== undefined) safe.days = Math.max(1, Math.floor(Number(safe.days || 30)));
+  if (safe.mult !== undefined) safe.mult = Math.min(10, Math.max(1, Number(safe.mult || 1)));
+  if (safe.dailyMax !== undefined) safe.dailyMax = Math.max(1, Math.floor(Number(safe.dailyMax || 50)));
+  if (safe.name !== undefined) safe.name = String(safe.name).slice(0, 60);
   Object.assign(p, safe); save(); res.json(p);
 });
 app.post('/api/console/plans/:id/toggle', adminAuth, (req, res) => {
@@ -954,6 +1053,9 @@ app.post('/api/console/merchants/:id', adminAuth, (req, res) => {
   const m = (db.merchants || []).find(x => x.id === req.params.id);
   if (!m) return res.status(404).json({ error: 'no' });
   const { id, secretKey, publicKey, ...safe } = req.body || {};
+  if (safe.name !== undefined) safe.name = String(safe.name).slice(0, 60);
+  if (safe.website !== undefined) safe.website = String(safe.website).slice(0, 120);
+  if (safe.webhookUrl !== undefined) safe.webhookUrl = String(safe.webhookUrl).slice(0, 200);
   Object.assign(m, safe); save(); res.json(m);
 });
 // merchant v1 API (third-party server uses secret key)
@@ -974,7 +1076,8 @@ app.post('/api/v1/charges', merchantAuth, (req, res) => {
     if (!p) return res.status(404).json({ error: 'bad product_id' });
     amt = Number(p.price); pname = p.name;
   }
-  if (!amt || amt <= 0) return res.status(400).json({ error: 'amount required' });
+  if (!amt || !isFinite(amt) || amt <= 0 || amt > 1000000) return res.status(400).json({ error: 'amount required' });
+  if (returnUrl && !/^(https?:\/\/|elsepay:\/\/)/i.test(String(returnUrl))) return res.status(400).json({ error: 'returnUrl must be http(s)' });
   const c = { id: 'ch_' + crypto.randomBytes(8).toString('hex'), merchantId: req.merchant.id, merchant: req.merchant.name, product: pname, productId: product_id || null, amount: amt, currency: db.config.billing.currency, status: 'created', payerUserId: null, returnUrl: returnUrl || '', webhookSent: '', at: new Date().toISOString() };
   db.charges.push(c); save();
   const base = (process.env.PUBLIC_URL || '').replace(/\/$/, '') || '';

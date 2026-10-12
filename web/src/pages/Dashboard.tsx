@@ -24,14 +24,15 @@ export default function Dashboard() {
   const watchAd = async () => {
     try {
       const s = await api.adStart();
-      setAdstat('Ad playing (5s)...');
+      const secs = s.adSeconds || 10;
+      setAdstat('Ad playing (' + secs + 's)...');
       setAdPct(4);
       try { window.AndroidRewarded?.showRewarded(s.sessionId); } catch {}
-      let n = 5;
+      let n = secs;
       const iv = setInterval(async () => {
         n--;
         setAdstat(n + 's...');
-        setAdPct((5 - n) * 20);
+        setAdPct((secs - n) * (100 / secs));
         if (n <= 0) {
           clearInterval(iv);
           try {

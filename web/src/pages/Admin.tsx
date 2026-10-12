@@ -33,7 +33,7 @@ export default function Admin() {
   return (
     <div className="sec">
       <div className="card"><h3>Else Admin</h3>
-        Admin key<input type="password" defaultValue="else-admin-123" onChange={e => localStorage.setItem('else_admin_key', e.target.value)} />
+        Admin key<input type="password" placeholder="paste admin key" onChange={e => localStorage.setItem('else_admin_key', e.target.value)} />
         <button className="btn" onClick={load}>Load / Refresh</button>
         <div className="small">{err}</div>
         <div>{stats && Object.entries(stats).map(([k, v]) => <span className="chip" key={k}>{k} {v}</span>)}</div>
