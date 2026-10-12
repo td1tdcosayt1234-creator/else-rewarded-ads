@@ -5,46 +5,66 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Else Pay — Watch Ads, Earn $</title>
 <meta name="description" content="Else Pay — rewarded ads app. Watch ads, complete tasks, earn balance and withdraw. Developer billing API and docs.">
+<meta name="theme-color" content="#0b0d12">
+<meta property="og:title" content="Else Pay — Watch Ads, Earn $">
+<meta property="og:description" content="Earn from rewarded ads, check-in, spin, tasks and referrals. Withdraw real balance.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://elsepay.indevs.in/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f8cff'/%3E%3Ctext x='32' y='44' font-size='34' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'%3E$%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0b0d12; --card:#12151d; --line:#1e2430; --txt:#e8ecf4; --mut:#94a0b4;
-    --acc:#4f8cff; --acc2:#22c98a; --radius:16px;
+    --acc:#4f8cff; --acc2:#22c98a; --warn:#f0b429; --radius:16px;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali",sans-serif;-webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none}
   .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
-  header{position:sticky;top:0;background:rgba(11,13,18,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:5}
+  header{position:sticky;top:0;background:rgba(11,13,18,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:5}
   nav{display:flex;align-items:center;gap:18px;height:64px}
   .logo{font-weight:800;font-size:20px;letter-spacing:.3px}
   .logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
   .sp{flex:1}
   .nl{color:var(--mut);font-size:14px}
   .nl:hover{color:var(--txt)}
-  .btn{display:inline-block;padding:12px 20px;border-radius:12px;font-weight:700;font-size:15px;border:1px solid var(--line);background:var(--card)}
+  .btn{display:inline-block;padding:12px 22px;border-radius:12px;font-weight:700;font-size:15px;border:1px solid var(--line);background:var(--card)}
   .btn.pri{background:linear-gradient(90deg,var(--acc),#3f7bef);border-color:transparent;color:#fff}
-  .btn:hover{filter:brightness(1.08)}
-  .hero{padding:76px 0 56px;text-align:center}
-  .pill{display:inline-block;padding:6px 14px;border:1px solid var(--line);border-radius:999px;color:var(--mut);font-size:13px;margin-bottom:20px}
-  h1{font-size:clamp(32px,6vw,54px);line-height:1.15;margin:0 0 16px}
+  .btn:hover{filter:brightness(1.1)}
+  .hero{padding:84px 0 60px;text-align:center;position:relative}
+  .hero::before{content:"";position:absolute;inset:-40px 0 0;background:radial-gradient(520px 260px at 50% 0%,rgba(79,140,255,.16),transparent 70%);pointer-events:none}
+  .pill{display:inline-block;padding:6px 14px;border:1px solid var(--line);border-radius:999px;color:var(--mut);font-size:13px;margin-bottom:20px;background:rgba(18,21,29,.7)}
+  h1{font-size:clamp(32px,6vw,56px);line-height:1.14;margin:0 0 16px}
   h1 em{font-style:normal;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .sub{color:var(--mut);font-size:clamp(15px,2.4vw,18px);max-width:640px;margin:0 auto 30px}
+  .sub{color:var(--mut);font-size:clamp(15px,2.4vw,18px);max-width:660px;margin:0 auto 30px}
   .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;padding:26px 0 10px}
+  .stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+  .stat{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 18px;font-size:14px;color:var(--mut)}
+  .stat b{display:block;font-size:20px;color:var(--txt)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;padding:26px 0 10px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
   .card h3{margin:0 0 8px;font-size:17px}
   .card p{margin:0;color:var(--mut);font-size:14.5px}
-  .ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:#1a2030;margin-bottom:14px;font-size:20px}
-  h2{font-size:clamp(22px,3.4vw,30px);margin:56px 0 6px;text-align:center}
-  .lead{color:var(--mut);text-align:center;margin:0 auto 26px;max-width:620px}
-  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  @media(max-width:760px){.split{grid-template-columns:1fr}}
-  .host{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
-  .host .u{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--acc2);word-break:break-all}
-  .host h3{margin:8px 0 8px;font-size:19px}
-  .host ul{margin:10px 0 0;padding-left:18px;color:var(--mut);font-size:14px}
-  .host li{margin:4px 0}
-  footer{border-top:1px solid var(--line);margin-top:56px;padding:26px 0;color:var(--mut);font-size:13.5px}
+  .ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#1a2440,#12261d);margin-bottom:14px}
+  .ico svg{width:22px;height:22px;stroke:var(--acc2);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  h2{font-size:clamp(22px,3.4vw,30px);margin:60px 0 6px;text-align:center}
+  .lead{color:var(--mut);text-align:center;margin:0 auto 26px;max-width:640px}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;counter-reset:st}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;position:relative}
+  .step::before{counter-increment:st;content:counter(st);position:absolute;top:14px;right:18px;font-size:44px;font-weight:800;color:#232b3d}
+  .step h3{margin:0 0 8px;font-size:17px}
+  .step p{margin:0;color:var(--mut);font-size:14.5px}
+  .dev{background:linear-gradient(135deg,#131a2e,#0f211a);border:1px solid var(--line);border-radius:var(--radius);padding:28px;margin-top:10px;display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
+  @media(max-width:700px){.dev{grid-template-columns:1fr}}
+  .dev h3{margin:0 0 8px;font-size:20px}
+  .dev p{margin:0;color:var(--mut);font-size:14.5px;max-width:640px}
+  .dev code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--acc2);word-break:break-all}
+  .bn{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-top:16px;text-align:center;color:var(--mut)}
+  .bn b{color:var(--txt)}
+  .faq{max-width:760px;margin:0 auto}
+  .faq details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:10px 0}
+  .faq summary{cursor:pointer;font-weight:700}
+  .faq p{margin:8px 0 0;color:var(--mut);font-size:14.5px}
+  footer{border-top:1px solid var(--line);margin-top:60px;padding:26px 0;color:var(--mut);font-size:13.5px}
   .fl{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
   .fl a:hover{color:var(--txt)}
   code.k{background:#1a2030;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:13px;color:#cfe0ff}
@@ -67,69 +87,73 @@
 <main class="wrap">
 
   <section class="hero">
-    <div class="pill">Rewarded ads · Earn balance · Withdraw</div>
-    <h1>Watch ads, complete tasks,<br><em>earn real balance.</em></h1>
-    <p class="sub">Else Pay is a server-based rewarded ads platform. Earn from rewarded ads, daily check-in, spin and tasks — then withdraw. Merchants get a clean billing API to spend that balance anywhere.</p>
+    <div class="pill">Rewarded ads · Tasks · Referrals · Withdraw</div>
+    <h1>Watch ads, finish tasks,<br><em>earn real balance.</em></h1>
+    <p class="sub">Else Pay is a server-based rewarded ads platform. Every reward is verified on the server — watch ads, keep check-in streaks, spin, complete tasks and invite friends. Then withdraw your balance.</p>
     <div class="cta">
       <a class="btn pri" href="https://app.elsepay.indevs.in/">Start earning →</a>
       <a class="btn" href="/docs">API Docs</a>
-      <a class="btn" href="/privacy">Privacy Policy</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>$10</b>min withdraw</div>
+      <div class="stat"><b>10%</b>referral commission</div>
+      <div class="stat"><b>7-day</b>check-in streaks</div>
     </div>
   </section>
 
   <section>
+    <h2>How it works</h2>
+    <p class="lead">Three steps. No card, no deposit — your time earns the balance.</p>
+    <div class="steps">
+      <div class="step"><h3>Create an account</h3><p>Sign up in under a minute with email + password. One account per person, secured with device binding.</p></div>
+      <div class="step"><h3>Earn every day</h3><p>Watch rewarded ads, check in daily, spin the wheel, finish tasks and invite friends for 10% commission.</p></div>
+      <div class="step"><h3>Withdraw or spend</h3><p>Request a withdraw to an enabled payout method, or spend earned balance directly on merchant sites with Else Pay checkout.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ways to earn</h2>
+    <p class="lead">Server-side rates per country, cooldowns and daily caps keep rewards fair for everyone.</p>
     <div class="grid">
-      <div class="card"><div class="ico">🎬</div><h3>Rewarded ads</h3><p>Server-verified ad rewards. Cooldown, daily cap and per-country rates are controlled server-side.</p></div>
-      <div class="card"><div class="ico">✅</div><h3>Tasks & check-in</h3><p>Daily check-in streaks, spin tickets and task milestones for extra earnings.</p></div>
-      <div class="card"><div class="ico">👥</div><h3>Referrals</h3><p>Invite friends and earn a commission on their activity.</p></div>
-      <div class="card"><div class="ico">💸</div><h3>Withdraw</h3><p>Withdraw your balance through the payment methods enabled for your country.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M10 9l5 3-5 3zM2 21h20"/></svg></div><h3>Rewarded ads</h3><p>Full-watch verified on the server. Instant closes earn nothing — real views earn real money.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg></div><h3>Daily check-in</h3><p>Streak bonuses grow every consecutive day, up to a 7-day top reward.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></div><h3>Spin wheel</h3><p>Every watched ad gives a spin ticket. Spin for instant bonus balance.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg></div><h3>Tasks</h3><p>Milestones for ads watched, friends invited and streak days — claim one-time rewards.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5M16 8.5a3.5 3.5 0 010 6.8M17.5 15.2c2 .7 3.2 2.2 3.7 4.3"/></svg></div><h3>Referrals</h3><p>Share your code. Earn 10% of everything your referrals earn — automatically.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg></div><h3>Pro plans</h3><p>Boost your earning multiplier and daily caps with a Pro subscription, paid from balance.</p></div>
     </div>
   </section>
 
   <section>
-    <h2>Three hosts, three jobs</h2>
-    <p class="lead">Everything runs on separate hostnames so the app, the API and this site never overlap.</p>
-    <div class="split">
-      <div class="host">
-        <div class="u">elsepay.indevs.in</div>
-        <h3>Home · Docs · Privacy</h3>
-        <ul>
-          <li>This landing page</li>
-          <li><code class="k">/docs</code> — API documentation</li>
-          <li><code class="k">/privacy</code> — privacy policy</li>
-        </ul>
+    <h2>For developers</h2>
+    <p class="lead">Accept Else Pay balance on your own site with three calls.</p>
+    <div class="dev">
+      <div>
+        <h3>Else Pay billing API</h3>
+        <p>Create a merchant key in the app console, create a product, create a charge, send the user to the checkout URL. Webhooks are HMAC-signed.</p>
+        <p style="margin-top:10px"><code>POST api.elsepay.indevs.in/api/v1/charges → checkout_url</code></p>
       </div>
-      <div class="host">
-        <div class="u">app.elsepay.indevs.in</div>
-        <h3>App — earn & dashboard</h3>
-        <ul>
-          <li>Sign up / log in</li>
-          <li>Dashboard, wallet, tasks, withdraw</li>
-          <li>Admin console</li>
-        </ul>
-      </div>
-      <div class="host">
-        <div class="u">api.elsepay.indevs.in</div>
-        <h3>Billing API</h3>
-        <ul>
-          <li><code class="k">/api/v1/charges</code>, <code class="k">/api/v1/products</code></li>
-          <li>Checkout: <code class="k">/api/pay/:id</code></li>
-          <li>Plans & subscriptions</li>
-        </ul>
-      </div>
-      <div class="host">
-        <div class="u">your merchant site</div>
-        <h3>Integrate</h3>
-        <ul>
-          <li>Create a merchant key in the app console</li>
-          <li>Sign webhooks with your secret key</li>
-          <li>Full flow in <a href="/docs" style="color:var(--acc)">Docs</a></li>
-        </ul>
-      </div>
+      <div><a class="btn pri" href="/docs">Read the docs →</a></div>
     </div>
   </section>
 
-  <section style="text-align:center;padding:14px 0 6px">
+  <section>
+    <h2>বাংলায় Else Pay</h2>
+    <div class="bn"><b>অ্যাড দেখুন, ব্যালেন্স জমা করুন।</b><br>প্রতিদিন চেক-ইন, স্পিন, টাস্ক আর রেফারেল থেকে আয় করুন। $10 হলে উইথড্র রিকোয়েস্ট পাঠান। ভুয়া ক্লিক বা বটে কোনো পেমেন্ট নেই — সব রিওয়ার্ড সার্ভারে যাচাই হয়।</div>
+  </section>
+
+  <section>
+    <h2>Questions</h2>
+    <div class="faq">
+      <details><summary>Is it free?</summary><p>Yes. No deposit, no card. You earn by watching ads and completing tasks.</p></details>
+      <details><summary>How do I receive money?</summary><p>Request a withdraw from the wallet page to any enabled payout method. An admin reviews and marks it paid.</p></details>
+      <details><summary>Why did my ad earn nothing?</summary><p>Rewards need a full watch. Closing instantly, emulators and VPNs are blocked by the server's fraud rules.</p></details>
+      <details><summary>Can I use two phones?</summary><p>One account is bound to one device. Lost your phone? Ask support to unlink it.</p></details>
+      <details><summary>Is my data safe?</summary><p>Passwords are salted + scrypt-hashed, sessions are HMAC-signed with 12-hour expiry, and everything runs behind Cloudflare HTTPS. See the <a href="/privacy" style="color:var(--acc)">privacy policy</a>.</p></details>
+    </div>
+  </section>
+
+  <section style="text-align:center;padding:16px 0 6px">
     <h2>Ready?</h2>
     <p class="lead">Create an account and start earning in under a minute.</p>
     <a class="btn pri" href="https://app.elsepay.indevs.in/">Open the app →</a>
@@ -144,11 +168,9 @@
     <a href="/docs">Docs</a>
     <a href="/privacy">Privacy</a>
     <a href="https://app.elsepay.indevs.in/">App</a>
-    <a href="https://api.elsepay.indevs.in/api/v1/products">API</a>
   </div>
-  <div class="wrap" style="margin-top:10px;color:#5f6b7e">© <span id="y"></span> Else Pay. All rights reserved.</div>
+  <div class="wrap" style="margin-top:10px;color:#5f6b7e">© 2026 Else Pay. All rights reserved.</div>
 </footer>
 
-<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
 </body>
 </html>
