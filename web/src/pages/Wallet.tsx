@@ -19,6 +19,8 @@ export default function Wallet() {
   useEffect(load, []);
 
   const go = async () => {
+    if (!isFinite(amt) || amt <= 0) { alert('Enter a valid amount'); return; }
+    if (!acc.trim()) { alert('Enter your payout account'); return; }
     try {
       const r = await api.withdraw(amt, method, acc);
       alert('Request ' + r.status);

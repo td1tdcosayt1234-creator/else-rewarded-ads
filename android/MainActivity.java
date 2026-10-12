@@ -10,9 +10,9 @@ import com.google.android.gms.ads.rewarded.*;
 
 public class MainActivity extends AppCompatActivity {
     WebView wv;
-    // TODO: change to your server URL (Render/VPS) - TSX app route
-    String SERVER_URL = "https://your-else-server.onrender.com/app/";
-    // TODO: AdMob IDs
+    // Live server (Cloudflare Tunnel) - TSX app route on the app host
+    String SERVER_URL = "https://app.elsepay.indevs.in/";
+    // AdMob rewarded ad unit (Google sample id - replace with your own before release)
     String ADMOB_REWARDED_ID = "ca-app-pub-3940256099942544/5224354917"; // test id
 
     protected void onCreate(Bundle b) {
@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
                         public void onAdLoaded(RewardedAd ad) {
                             ad.show(MainActivity.this, reward -> {
                                 // Web page will call /api/ads/rewarded/complete with sessionId
-                                // Real SSV: AdMob server calls https://your-server/api/ads/ssv?user_id=..&session_id=..
+                                // Real SSV: AdMob server calls https://app.elsepay.indevs.in/api/ads/ssv?user_id=..&session_id=..
                                 wv.evaluateJavascript("document.getElementById('adstat').innerText='Native AdMob done, verifying...'", null);
                             });
                         }

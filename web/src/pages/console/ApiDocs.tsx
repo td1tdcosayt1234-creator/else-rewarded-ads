@@ -17,7 +17,7 @@ function Code({ title, text }: { title: string; text: string }) {
 
 export default function ApiDocs() {
   const [tab, setTab] = useState<'curl' | 'node' | 'python' | 'php'>('curl');
-  const base = 'https://your-else-server';
+  const base = 'https://api.elsepay.indevs.in';
   const snippets: Record<string, string> = {
     curl: `# 1) Product (you will get a product_id)
 curl -X POST ${base}/api/v1/products \\

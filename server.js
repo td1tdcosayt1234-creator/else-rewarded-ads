@@ -160,7 +160,8 @@ setInterval(() => {
     if (!fresh.length) rlBuckets.delete(k); else rlBuckets.set(k, fresh);
   }
 }, 5 * 60 * 1000).unref();
-app.use('/api/auth/', rateLimit(10, 60 * 1000)); // login/signup: 10 per min
+app.use('/api/auth/login', rateLimit(10, 60 * 1000)); // login: 10 per min (brute-force target)
+app.use('/api/auth/signup', rateLimit(30, 60 * 1000)); // signup: 30 per min (device cap backs it)
 app.use('/api/', rateLimit(150, 60 * 1000)); // global: 150 per min
 // admin brute-force lockout: 5 wrong keys -> 5 min block
 const adminFails = new Map();
@@ -370,8 +371,8 @@ function credit(user, amount, reason, type = 'earn') {
   user.balance = +((user.balance || 0) + amount).toFixed(4);
   const tx = { id: nid('tx'), userId: user.id, type, amount, reason, at: new Date().toISOString() };
   db.transactions.push(tx);
-  // referral commission to inviter
-  if (type === 'earn' && user.referredBy) {
+  // referral commission to inviter (never to self)
+  if (type === 'earn' && user.referredBy && user.referredBy !== user.id) {
     const ref = db.users.find(u => u.id === user.referredBy);
     if (ref && !ref.banned) {
       const comm = +(amount * db.config.referralCommission).toFixed(4);
@@ -383,6 +384,13 @@ function credit(user, amount, reason, type = 'earn') {
   }
   return tx;
 }
+// console-toggled auth policy (console -> Authentication). All default ON.
+// requireLogin=false re-allows legacy passwordless device auto-create (old apps).
+function authCfg() {
+  return db.config.authSettings || { requireLogin: true, deviceLock: true, vpnBlock: true, emulatorBlock: true };
+}
+const MAX_ACCOUNTS_PER_DEVICE = 3;
+function deviceAccounts(d) { return db.users.filter(u => u.deviceId === d).length; }
 function auth(req, res, next) {
   const h = req.headers.authorization || '';
   let token = h.startsWith('Bearer ') ? h.slice(7) : null;
@@ -482,8 +490,8 @@ app.post('/api/auth/login', (req, res) => {
     clearUserFails(idKey);
     // device lock: bind first device, block others
     if (deviceId) {
-      if (!user.deviceId) { user.deviceId = deviceId; }
-      else if (user.deviceId !== deviceId && !user.isAdmin) {
+      if (!user.deviceId) { if (authCfg().deviceLock !== false) user.deviceId = deviceId; }
+      else if (user.deviceId !== deviceId && !user.isAdmin && authCfg().deviceLock !== false) {
         return res.status(403).json({ error: 'this account is already on another device' });
       }
     }
@@ -496,15 +504,20 @@ app.post('/api/auth/login', (req, res) => {
   }
   // legacy: deviceId login (old app versions, users without password)
   if (!deviceId) return res.status(400).json({ error: 'email/username and password required' });
+  if (userBlocked('dev:' + deviceId)) return res.status(429).json({ error: 'device locked 15 min - too many wrong passwords' });
   let user = db.users.find(u => u.deviceId === deviceId);
   if (user && user.isAdmin && !checkAdminPass(password)) {
-    return res.status(401).json({ error: 'admin password wrong' });
+    recordUserFail('dev:' + deviceId);
+    return res.status(401).json({ error: 'invalid credentials' });
   }
   if (user && user.passHash && !checkUserPass(user, password)) {
-    return res.status(401).json({ error: 'password required - use email login' });
+    recordUserFail('dev:' + deviceId);
+    return res.status(401).json({ error: 'invalid credentials' });
   }
   const code = (country || 'DEFAULT').toUpperCase();
   if (!user) {
+    if (authCfg().requireLogin !== false) return res.status(401).json({ error: 'login required - create an account first' });
+    if (deviceAccounts(deviceId) >= MAX_ACCOUNTS_PER_DEVICE) return res.status(403).json({ error: 'too many accounts on this device' });
     let referredBy = null;
     if (referralCode) {
       const r = db.users.find(u => u.referralCode === referralCode);
@@ -524,6 +537,7 @@ app.post('/api/auth/login', (req, res) => {
     if (country) user.country = code;
     save();
   }
+  clearUserFails('dev:' + deviceId);
   const token = signToken(user.id);
   logEvent('login', user.name + (user.isAdmin ? ' [admin]' : ''));
   res.json({ token, user: publicUser(user) });
@@ -555,6 +569,7 @@ app.post('/api/auth/signup', (req, res) => {
     const r = db.users.find(u => u.referralCode === String(referralCode).trim());
     if (r) referredBy = r.id;
   }
+  if (deviceId && deviceAccounts(deviceId) >= MAX_ACCOUNTS_PER_DEVICE) return res.status(403).json({ error: 'too many accounts on this device', step: 2 });
   const salt = crypto.randomBytes(8).toString('hex');
   const user = {
     id: nid('u'), deviceId: deviceId || null,
@@ -603,10 +618,10 @@ function consumeAdSession(sessionId, userId) {
 }
 // Step 1: start (cooldown + daily limit check) -> sessionId
 app.post('/api/ads/rewarded/start', auth, (req, res) => {
-  const u = req.user, c = db.config;
+  const u = req.user, c = db.config, pol = authCfg();
   if (!c.ads.enabled || !c.ads.rewarded) return res.status(403).json({ error: 'ads off' });
-  if (u.isEmulator) return res.status(403).json({ error: 'emulator blocked (C8)' });
-  if (u.isVpn) return res.status(403).json({ error: 'vpn blocked, turn off vpn' });
+  if (pol.emulatorBlock !== false && u.isEmulator) return res.status(403).json({ error: 'emulator blocked (C8)' });
+  if (pol.vpnBlock !== false && u.isVpn) return res.status(403).json({ error: 'vpn blocked, turn off vpn' });
   if (u.todayDate !== todayStr()) { u.todayDate = todayStr(); u.todayCount = 0; }
   const maxAds = subDailyMax(u.id);
   if (u.todayCount >= maxAds) return res.status(429).json({ error: 'daily limit ' + maxAds });
@@ -712,7 +727,7 @@ app.get('/api/wallet', auth, (req, res) => {
   res.json({ balance: req.user.balance, history: db.transactions.filter(t => t.userId === req.user.id).slice(-50).reverse() });
 });
 app.get('/api/leaderboard', auth, (req, res) => {
-  res.json([...db.users].filter(u => !u.banned).sort((a, b) => b.balance - a.balance).slice(0, 10).map(u => ({ name: u.name, balance: u.balance, totalAds: u.totalAds })));
+  res.json([...db.users].filter(u => !u.banned && !u.isAdmin).sort((a, b) => b.balance - a.balance).slice(0, 10).map(u => ({ name: u.name, balance: u.balance, totalAds: u.totalAds })));
 });
 app.post('/api/withdraw', auth, (req, res) => {
   let { amount, method, account } = req.body || {};
@@ -796,6 +811,14 @@ app.post('/api/admin/user/:id/ban', adminAuth, (req, res) => {
   const u = db.users.find(x => x.id === req.params.id);
   if (!u) return res.status(404).json({ error: 'no' });
   u.banned = !u.banned; save(); res.json({ banned: u.banned });
+});
+// admin: unlink a user's device (lost phone / reinstall) so it can re-bind on next login
+app.post('/api/console/users/:id/reset-device', adminAuth, (req, res) => {
+  const u = db.users.find(x => x.id === req.params.id);
+  if (!u) return res.status(404).json({ error: 'no' });
+  if (u.isAdmin) return res.status(400).json({ error: 'use admin-account reset for the admin' });
+  u.deviceId = null; save(); logEvent('user', 'device reset for ' + u.name);
+  res.json({ ok: true });
 });
 app.post('/api/admin/config', adminAuth, (req, res) => {
   const b = req.body || {};
@@ -1116,7 +1139,7 @@ app.post('/api/pay/:id/confirm', auth, async (req, res) => {
 });
 app.get('/api/console/charges', adminAuth, (req, res) => res.json((db.charges || []).slice().reverse()));
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', index: false, redirect: false }));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+// /admin is the SPA admin console (App.tsx) - no legacy static page.
 // ---------- earn app ----------
 // App host root IS the earn place: app.elsepay.indevs.in -> earn app.
 // /app kept for backwards compatibility (existing WebView links).
