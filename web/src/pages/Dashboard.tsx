@@ -61,11 +61,11 @@ export default function Dashboard() {
         <button className="tile t-pink" onClick={loadTasks}><div className="ic">TS</div><b>Tasks</b><span>Offerwall</span></button>
       </div>
       <div className="sec">
-        <div className="adbox">Banner Ad (AdMob)</div>
+        <div className="adbox"><span className="live">LIVE</span><br />Sponsored video • Adsterra</div>
         <div id="adstat">{adstat}</div>
         {adPct > 0 && <div className="adbar"><div style={{ width: adPct + '%' }} /></div>}
         {toast && <div className="toast">{toast}</div>}
-        <button className="btn btn2" onClick={inter}>Interstitial Ad (owner income)</button>
+        <button className="btn btn2" onClick={inter}>Sponsored view (owner income)</button>
         <div className="card"><h3>Tasks <button className="btn2 btn" style={{ width: 'auto', padding: '6px 12px' }} onClick={loadTasks}>View All</button></h3>
           {tasks.map(t => (
             <div className="listrow" key={t.id}>
